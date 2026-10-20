@@ -4,6 +4,8 @@ import { sunPosition, planetPositions } from './planets.js';
 import { declination, getSeason, maxSolarAltitude } from './season.js';
 import { getPalette, PHASE_KEYS } from './palette.js';
 import { moonPosition, moonPhase } from './moon.js';
+import { starField, STAR_COUNT } from './stars.js';
+import { rng } from '../core/util.js';
 
 const RAD = Math.PI / 180;
 
@@ -126,5 +128,32 @@ describe('moon', () => {
     expect(dusk.az).toBeLessThan(135);
     expect(dawn.az).toBeGreaterThan(225);
     expect(dawn.az).toBeLessThan(315);
+  });
+});
+
+describe('star field', () => {
+  it('is the same sky every time', () => {
+    expect(starField()).toEqual(starField());
+    expect(starField()).toHaveLength(STAR_COUNT);
+  });
+
+  it('draws the seed in the classic layer\'s order, so indices mean the same star', () => {
+    // Replay StarsLayer's draws for star #57 and compare the parts both keep.
+    const r = rng(20260713);
+    let s57;
+    for (let i = 0; i <= 57; i++) {
+      const size = r() > 0.93 ? 2 : 1;
+      const x = r(); r(); // y
+      const base = 0.35 + r() * 0.65; r(); r(); r(); // speed, phase, warm
+      if (i === 57) s57 = { size, x, base };
+    }
+    const star = starField()[57];
+    expect(star.size).toBe(s57.size);
+    expect(star.az).toBeCloseTo(s57.x * 360);
+    expect(star.base).toBeCloseTo(s57.base);
+  });
+
+  it('keeps every star above the horizon', () => {
+    for (const s of starField()) expect(s.alt).toBeGreaterThan(5);
   });
 });

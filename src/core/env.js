@@ -30,7 +30,11 @@ class Environment {
     this._offline = net.online ? 0 : 1; // eased, so the fog rolls in
     this.sun = null; // { sunriseHour, sunsetHour } once the weather resolves
     this.lat = 45; // until the weather tells us better
-    this.lon = 0;
+    /* Until then, guess the longitude from the clock: 15° per hour of UTC offset.
+       A default of 0° put the sun high over Greenwich at 22:30 in Jakarta — a
+       night palette with a noon sun in it. This keeps the sky consistent with
+       the clock from the first frame. */
+    this.lon = -new Date().getTimezoneOffset() / 4;
     this.place = ''; // for the postcard; the world itself never needs the name
 
     this._paletteClock = 0;
@@ -49,7 +53,7 @@ class Environment {
       sun: null,
       hour: 12,
       lat: 45,
-      lon: 0, // the sky needs it: sidereal time is a fact about your longitude
+      lon: this.lon, // the sky needs it: sidereal time is a fact about your longitude
 
       /* How much snow is LYING on the ground, 0–1 — which is not the same thing
          as whether it is snowing, and was not the same thing as what season it
