@@ -1,10 +1,11 @@
 // Screenshot the running app at fixed viewports and frozen hours.
-// Usage: node scripts/capture.mjs <label> [url]   (e.g. before, http://localhost:4173)
+// Usage: node scripts/capture.mjs <label> [url] [mode]   (e.g. before, http://localhost:4173, classic)
 import { chromium } from '@playwright/test';
 import { mkdirSync } from 'node:fs';
 
 const label = process.argv[2] || 'shot';
 const url = process.argv[3] || 'http://localhost:4173';
+const mode = process.argv[4] || 'classic'; // 'classic' | '3d' | 'auto'
 const out = 'docs/screens/renovasi-3d';
 mkdirSync(out, { recursive: true });
 
@@ -21,9 +22,10 @@ for (const [w, h] of VIEWPORTS) {
       permissions: ['geolocation'],
     });
     // Freeze the hour and skip the store's first-visit noise.
-    await ctx.addInitScript((hour) => {
-      localStorage.setItem('uad.v1', JSON.stringify({ timeOverride: hour, visits: 3, firstSeen: 1 }));
-    }, hour);
+    // Seeded as uad.v1 on purpose: every capture also exercises the migration.
+    await ctx.addInitScript(([hour, mode]) => {
+      localStorage.setItem('uad.v1', JSON.stringify({ timeOverride: hour, visits: 3, firstSeen: 1, mode }));
+    }, [hour, mode]);
     const page = await ctx.newPage();
     await page.goto(url, { waitUntil: 'networkidle' });
     // Force clear weather so a real storm in Jakarta doesn't make before/after incomparable.

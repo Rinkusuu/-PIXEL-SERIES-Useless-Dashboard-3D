@@ -23,6 +23,7 @@ import { zen } from './core/zen.js';
 import { initAchievements } from './core/achievements.js';
 import { initServiceWorker } from './core/net.js';
 import { play } from './core/play.js';
+import { env } from './core/env.js';
 import { $, el } from './core/util.js';
 
 import { Scene } from './classic/Scene.js';
@@ -143,7 +144,7 @@ function tbtn({ emoji, text, title, ghost = false, onClick }) {
   return { node, ico, txt };
 }
 
-function wireTopbar(scene, palette) {
+function wireTopbar({ mode, palette, postcard: savePostcardNow }) {
   const tools = $('.topbar__tools');
 
   /* ── Sound ─────────────────────────────────────────────────────────────── */
@@ -265,16 +266,18 @@ function wireTopbar(scene, palette) {
     emoji: '📮',
     text: 'Postcard',
     title: 'Save the world as a PNG',
-    onClick: () => {
-      const env = scene.env;
-      savePostcard($('#scene'), $('#glow'), {
-        caption: env.pal.caption,
-        place: scene.place || '',
-        season: env.season.name,
-        weather: env.pal.weather,
-        time: `${String(Math.floor(env.hour)).padStart(2, '0')}:00`,
-      });
-    },
+    onClick: savePostcardNow,
+  });
+
+  /* ── Mode ──────────────────────────────────────────────────────────────────
+     Classic and the walkable world are two renderers over one store, so
+     switching is just remembering the choice and reloading — far simpler and
+     safer than tearing one renderer down inside a live page. */
+  const modeBtn = tbtn({
+    emoji: mode === '3d' ? '🖼️' : '🚪',
+    text: mode === '3d' ? 'Classic' : 'Walk',
+    title: mode === '3d' ? 'Back to the classic dashboard' : 'Step into the world',
+    onClick: () => switchMode(mode === '3d' ? 'classic' : '3d'),
   });
 
   /* ── ⌘K ────────────────────────────────────────────────────────────────── */
@@ -287,11 +290,59 @@ function wireTopbar(scene, palette) {
     onClick: () => palette.show(),
   });
 
-  tools.append(season.node, glassBtn.node, zenBtn.node, postcard.node, paletteBtn.node);
+  // The world has no panels to clear yet and no camera to photograph with: in
+  // 3D, Glass and Postcard wait for the pocket book and photo mode (P3).
+  tools.append(
+    ...(mode === '3d' ? [season.node, zenBtn.node] : [season.node, glassBtn.node, zenBtn.node, postcard.node]),
+    modeBtn.node,
+    paletteBtn.node,
+  );
 
   // Only now that the buttons exist can we paint their initial state.
   setSeason(store.get('seasonOverride'));
   setGlass(store.get('glass'));
+}
+
+/* ── Mode ────────────────────────────────────────────────────────────────────
+   'auto' walks you into the world whenever the browser can draw it. Without
+   WebGL2 — or if you chose it — you get the classic dashboard, intact. Asking
+   for 3D on a browser that can't do it is answered with Classic and a word.
+   -------------------------------------------------------------------------- */
+function hasWebGL2() {
+  try {
+    return Boolean(document.createElement('canvas').getContext('webgl2'));
+  } catch {
+    return false;
+  }
+}
+
+function pickMode() {
+  const wanted = store.get('mode');
+  if (wanted === 'classic') return 'classic';
+  if (hasWebGL2()) return '3d';
+  if (wanted === '3d') {
+    bus.emit('toast', { icon: '🖼️', text: 'This browser cannot draw the world. Here is the classic one.', ms: 6000 });
+  }
+  return 'classic';
+}
+
+function switchMode(next) {
+  store.set('mode', next);
+  location.reload(); // pagehide flushes the store
+}
+
+/* three.js and the world load lazily: Classic, and the shell around both, must
+   stay as fast to open as they were before there was a world at all. */
+function startWorld() {
+  import('./world/index.js')
+    .then(({ startWorld: start }) => start($('#world3d')))
+    .catch((err) => {
+      // Not remembered as a choice: next visit tries the world again.
+      console.error('[world] failed to start:', err);
+      document.documentElement.dataset.mode = 'classic';
+      new Scene($('#scene'), $('#glow'));
+      bus.emit('toast', { icon: '🖼️', text: 'The world would not open. Classic it is, for now.', ms: 6000 });
+    });
 }
 
 /* ── Boot ────────────────────────────────────────────────────────────────── */
@@ -304,13 +355,23 @@ function boot() {
 
   paintSigil();
 
-  const scene = new Scene($('#scene'), $('#glow'));
+  const mode = pickMode();
+  document.documentElement.dataset.mode = mode;
 
-  /* The scene renders the weather; it doesn't need to know the place's NAME.
-     The postcard does. This is the one line that carries it across. */
-  bus.on('weather', (w) => {
-    scene.place = [w.place, w.region].filter(Boolean).join(', ');
-  });
+  if (mode === 'classic') new Scene($('#scene'), $('#glow'));
+  else startWorld();
+
+  const postcard = () => {
+    if (mode !== 'classic') return; // photo mode replaces this in the world (P3)
+    const s = env.state;
+    savePostcard($('#scene'), $('#glow'), {
+      caption: s.pal.caption,
+      place: env.place,
+      season: s.season.name,
+      weather: s.pal.weather,
+      time: `${String(Math.floor(s.hour)).padStart(2, '0')}:00`,
+    });
+  };
 
   /* ── The caption under the title follows the sky ─────────────────────────── */
   const caption = $('#sceneCaption');
@@ -341,9 +402,10 @@ function boot() {
   bus.on('second', () => {
     if (!caption) return;
 
+    const hour = env.hour;
     const d = new Date();
-    d.setHours(Math.floor(scene.hour), Math.round((scene.hour % 1) * 60), 0, 0);
-    const sun = sunPosition(d, scene.lat, scene.lon);
+    d.setHours(Math.floor(hour), Math.round((hour % 1) * 60), 0, 0);
+    const sun = sunPosition(d, env.lat, env.lon);
 
     const now = sun.alt > -4 && sun.alt < 6;
     if (now === golden) return; // the DOM only hears about it when it changes
@@ -353,16 +415,16 @@ function boot() {
       ? sun.ha < 0
         ? 'the light has turned gold, and the day has not even started.'
         : 'golden hour. everything is forgiven.'
-      : scene.env.pal.caption;
+      : env.state.pal.caption;
   });
 
   mountWidgets();
 
   initAchievements();
   initZen();
-  const palette = initCommandPalette(scene);
+  const palette = initCommandPalette({ mode, postcard, switchMode });
 
-  wireTopbar(scene, palette);
+  wireTopbar({ mode, palette, postcard });
 
   // FPS, once a second. Sixty times a second would cost more than it measures.
   const fps = $('#fpsReadout');

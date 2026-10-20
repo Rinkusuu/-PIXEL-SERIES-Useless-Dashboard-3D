@@ -100,6 +100,20 @@ button {
   }
 }
 
+/* One renderer at a time. Classic never shows the 3D canvas; the world never
+   shows the 2D pair. Until the pocket book exists (P3), the world also hides
+   the panel grid — the widgets stay mounted, because several of them are what
+   fetch the weather, track the ISS and count the coins. */
+.world__canvas--3d,
+:root[data-mode='3d'] #scene,
+:root[data-mode='3d'] #glow,
+:root[data-mode='3d'] .grid {
+  display: none;
+}
+:root[data-mode='3d'] .world__canvas--3d {
+  display: block;
+}
+
 .world__vignette {
   position: absolute;
   inset: 0;

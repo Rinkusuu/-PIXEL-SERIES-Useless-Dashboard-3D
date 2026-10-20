@@ -27,6 +27,8 @@
       <canvas id="scene" class="world__canvas"></canvas>
       <!-- Emissive buffer: blurred + screen-blended over the scene for bloom -->
       <canvas id="glow" class="world__canvas world__canvas--glow"></canvas>
+      <!-- The walkable world (3D mode). Drawn by src/world/, loaded lazily. -->
+      <canvas id="world3d" class="world__canvas world__canvas--3d"></canvas>
       <div class="world__vignette"></div>
       <div class="world__scanlines"></div>
     </div>

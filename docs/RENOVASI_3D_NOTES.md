@@ -253,3 +253,13 @@ Housekeeping: `@playwright/test` added as a devDependency (the spec needs it for
 - One change from the P0.2 plan: **catches are a log, not a set**. Two carp stay two carp, so they are not deduplicated.
 - `view.pointerLock` defaults to `true`, per the review decision.
 - The store's DEFAULTS aliasing (P0.1 finding 6) is fixed with `structuredClone`, and a test covers it.
+
+### P1.3 — Mode picker (done)
+- `store.mode`: `auto` (3D when WebGL2 exists), `classic`, or `3d`. Asking for `3d` without WebGL2 gives Classic plus a toast. Checked in Chromium with WebGL disabled: auto → classic, 3d → classic with the toast, no page errors.
+- Switching is a topbar button ("Walk" / "Classic") and a ⌘K command. It stores the choice and reloads; `pagehide` flushes the store. That is simpler than tearing a renderer down inside a live page.
+- `world/index.js` is lazy (`import()` in main.js), a **0.27 KB gz** chunk for now. At this stage it clears a WebGL2 canvas to the palette's `sky[1]`. If the world fails to start, Classic is built in place and the failure is **not** saved as the user's choice.
+- **`core/env.js`** now holds the renderer-independent state that used to live in `classic/Scene.js`: weather, hour, season, palette at 4 Hz + `phase`, snow settling, offline easing, bass, breath. Scene keeps only canvas, parallax, pointer, bloom and layers. The 3D world reads the same `env.state`, so there is one clock, one palette and one snow depth.
+- 3D mode hides the panel grid until the pocket book exists (P3), but the widgets **stay mounted** because they run the weather/ISS/coin loops (P0.1 finding 1). Glass and Postcard are hidden in 3D until photo mode.
+- **Bug fixed along the way:** `Scene._bloom` was never initialised, so `Math.abs(bloom - undefined)` was always `NaN` and the bloom never followed the music's bass, though the README says it does. It now starts at 0.85 (the CSS resting opacity), so the resting look is unchanged.
+- Captures: `p1-classic-*` matches `before-*` apart from one extra topbar button (Walk). `p1-3d-*` shows the palette-coloured empty world with the topbar.
+- Bundle: shell 165.3 KB → **60.9 KB gz** (+1.5 KB: env, migrate, mode). World chunk 0.27 KB gz.

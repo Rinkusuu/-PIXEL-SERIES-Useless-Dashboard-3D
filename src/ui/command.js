@@ -19,7 +19,6 @@ import { motion } from '../core/motion.js';
 import { zen } from '../core/zen.js';
 import { el, $, clamp } from '../core/util.js';
 import { SEASON_KEYS, SEASON_ICON } from '../sky/season.js';
-import { savePostcard } from './postcard.js';
 import { play, MODES } from '../core/play.js';
 
 /**
@@ -56,7 +55,7 @@ function fuzzy(needle, haystack) {
   return score - h.length * 0.02;
 }
 
-export function initCommandPalette(scene) {
+export function initCommandPalette({ mode, postcard, switchMode }) {
   /* ── The action list ────────────────────────────────────────────────────────
      Each command is { id, icon, label, hint, run }. Nothing here reimplements
      anything; `run` calls the same code the UI does. */
@@ -77,26 +76,18 @@ export function initCommandPalette(scene) {
       hint: 'stills the world',
       run: () => motion.toggle(),
     },
-    {
-      icon: '🪟',
-      label: store.get('glass') ? 'Frost the glass' : 'Clear the glass',
-      hint: 'see the world through the dashboard',
-      run: () => bus.emit('cmd:glass'),
-    },
-    {
-      icon: '📮', label: 'Save a postcard', hint: 'export the world as a PNG',
-      run: () => {
-        const pal = scene.env.pal;
-        const w = scene.env;
-        savePostcard($('#scene'), $('#glow'), {
-          caption: pal.caption,
-          place: scene.place || '',
-          season: scene.env.season.name,
-          weather: pal.weather,
-          time: `${String(Math.floor(w.hour)).padStart(2, '0')}:00`,
-        });
+    mode === '3d'
+      ? { icon: '🖼️', label: 'Classic dashboard', hint: 'the painting, with the panels', run: () => switchMode('classic') }
+      : { icon: '🚪', label: 'Walk into the world', hint: 'the 3D one', run: () => switchMode('3d') },
+    ...(mode === '3d' ? [] : [
+      {
+        icon: '🪟',
+        label: store.get('glass') ? 'Frost the glass' : 'Clear the glass',
+        hint: 'see the world through the dashboard',
+        run: () => bus.emit('cmd:glass'),
       },
-    },
+      { icon: '📮', label: 'Save a postcard', hint: 'export the world as a PNG', run: postcard },
+    ]),
     {
       icon: '🎵', label: audio.playing ? 'Pause music' : 'Play music',
       hint: 'Ambient Loop FM',
