@@ -8,7 +8,7 @@
    ========================================================================== */
 
 import '../styles/world.css';
-import { Color, Fog, Raycaster, Scene, Vector2 } from 'three';
+import { Box3, Color, Fog, Raycaster, Scene, Vector2, Vector3 } from 'three';
 
 import { bus } from '../core/bus.js';
 import { env } from '../core/env.js';
@@ -32,6 +32,8 @@ import { Player } from './player.js';
 import { Input } from './input.js';
 import { Hud } from './hud.js';
 import { Watch } from './watch.js';
+import { buildObjects } from './objects.js';
+import { closePanels, openPanel, openPocket, panelOpen } from '../ui/panels.js';
 
 const REACH = 3.2; // metres: how far away a thing can be and still be used
 
@@ -64,14 +66,25 @@ export function startWorld(canvas) {
 
   const player = new Player(col);
   water.watch(player.camera, LAYER_GRASS);
-  const hud = new Hud(() => input.queueUse(), () => input.queueWatch());
+  const hud = new Hud(() => input.queueUse(), () => input.queueWatch(), () => input.queuePocket());
   const input = new Input(canvas, hud);
   world.add(player.camera); // the watch hangs off the camera, so the camera must be in the scene
   const watch = new Watch(player.camera, hud);
   bus.on('second', (d) => hud.tickMinute(d));
+  // While a panel or the pocket book is open you are reading, not walking: let go of the mouse.
+  bus.on('panel', (p) => {
+    input.enabled = !p;
+    if (p && document.pointerLockElement) document.exitPointerLock();
+  });
   addEventListener('keydown', (e) => e.key === 'Escape' && watch.lower());
-  const interactables = [...house.interactables];
+  const objects = buildObjects(props.named);
+  world.add(objects.group);
+  const interactables = [
+    ...house.interactables,
+    ...objects.list.map((o) => ({ object: o.object, label: () => o.label, use: () => openPanel(o.panel) })),
+  ];
   const targets = interactables.map((i) => i.object);
+  const gazeTargets = [...targets, house.shell];
   const ray = new Raycaster();
   ray.far = REACH;
   ray.layers.enableAll();
@@ -132,11 +145,13 @@ export function startWorld(canvas) {
 
     // What are we looking at?
     ray.setFromCamera(new Vector2(0, 0), player.camera);
-    const hit = player.waking ? null : ray.intersectObjects(targets, false)[0];
-    const target = hit ? interactables[targets.indexOf(hit.object)] : null;
+    // The cabin's walls are in the test too: the nearest hit must be the thing itself.
+    const hit = player.waking ? null : ray.intersectObjects(gazeTargets, false)[0];
+    const target = hit && hit.object !== house.shell ? interactables[targets.indexOf(hit.object)] : null;
     hud.setTarget(target);
     if (intent.use && target) target.use();
     if (intent.watch) watch.press();
+    if (intent.pocket) (panelOpen()?.pocket ? closePanels() : openPocket());
     watch.update(s, dt);
 
     // The palette, everywhere it lands.
@@ -167,6 +182,7 @@ export function startWorld(canvas) {
       clear,
       bloomStrength: 0.85 + s.bass * 0.3 + (s.zen ? (s.breath - 0.5) * 0.25 : 0),
       key: lights.key,
+      outline: target && !panelOpen() ? target.object : null,
       // How thick the air is: a clear noon is nearly clean; fog, weather and losing the network thicken it.
       air: {
         density: 0.004 + s.pal.fogAmount * 0.035 + (s.weather === 'fog' ? 0.03 : 0) + s.offline * 0.03,
@@ -198,10 +214,22 @@ export function startWorld(canvas) {
       pipeline,
       scene: world,
       sky,
-      teleport(x, z, yaw = player.yaw, pitch = 0) {
+      objects: objects.list,
+      /** Stand `dist` metres from an object (on the floor you name) and look straight at it. */
+      lookAt(id, x, z, feet = 99) {
+        const o = objects.list.find((q) => q.id === id).object;
+        const c = new Box3().setFromObject(o).getCenter(new Vector3());
+        this.teleport(x, z, 0, 0, feet);
+        col.move(player.pos, 0, 0); // settle out of any furniture first, then aim from where we really are
+        const { x: px, z: pz } = player.pos;
+        player.yaw = Math.atan2(-(c.x - px), -(c.z - pz));
+        player.pitch = Math.atan2(c.y - (player.pos.y + 1.6), Math.hypot(c.x - px, c.z - pz));
+      },
+      teleport(x, z, yaw = player.yaw, pitch = 0, feet = 99) {
         player.pos.x = x;
         player.pos.z = z;
-        player.pos.y = player.pos.groundY = col.groundAt(x, z, 99).y;
+        // feet: the highest floor to consider (99 = the top one; 1.5 = the cabin floor, not the loft)
+        player.pos.y = player.pos.groundY = col.groundAt(x, z, feet).y;
         player.yaw = yaw;
         player.pitch = pitch;
         player.wake(false);

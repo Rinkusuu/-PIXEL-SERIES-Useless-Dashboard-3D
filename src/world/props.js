@@ -22,6 +22,7 @@ export function buildProps(col) {
   const group = new Group();
   const add = (m) => (group.add(m), m);
   const glass = [];
+  const named = {}; // things the dashboard objects reuse (objects.js)
 
   // ── Dock ────────────────────────────────────────────────────────────────
   {
@@ -129,7 +130,7 @@ export function buildProps(col) {
     g.fillBox(x - 0.05, gy, z - 0.05, x + 0.05, gy + 1.05, z + 0.05, DARK);
     g.fillBox(x - 0.2, gy + 1.05, z - 0.3, x + 0.2, gy + 1.4, z + 0.3, grain('#b8504a', 0.3));
     g.fillBox(x + 0.2, gy + 1.2, z + 0.1, x + 0.3, gy + 1.5, z + 0.2, grain('#e8c060', 0.2)); // the flag
-    add(voxelMesh(g));
+    named.mailbox = add(voxelMesh(g));
     col.addCircle(x, z, 0.32);
   }
 
@@ -154,7 +155,7 @@ export function buildProps(col) {
       const t = py - (gy + 1.3);
       return t > -0.1 && t < 0.6 && Math.hypot(px - (x + t * 0.5), pz - (z - t * 0.35)) < 0.09;
     }, grain('#c8b070', 0.3));
-    add(voxelMesh(g));
+    named.telescope = add(voxelMesh(g));
     col.addCircle(x, z, 0.45);
 
     const f = SPOTS.flatRock;
@@ -205,7 +206,7 @@ export function buildProps(col) {
     l.y = y + LAMP_GLASS.y0 + 0.15; // where the light hangs
   }
 
-  return { group, lampGlass: glass, lampMat: glassMat };
+  return { group, lampGlass: glass, lampMat: glassMat, named };
 }
 
 /** Lamps glow at night; by day the glass is just dull. */

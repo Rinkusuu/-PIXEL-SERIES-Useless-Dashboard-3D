@@ -41,7 +41,8 @@ export class House {
     // One grid for the whole cabin, 10 cm voxels: one mesh, one draw call.
     this.grid = new VoxelGrid([CABIN.x0 - 1, CABIN.groundY - 0.5, CABIN.porch.z0 - 0.5], [CABIN.x1 + 1.5, CABIN.ridgeY + 1.3, CABIN.z1 + 1.1]);
     this._build();
-    this.group.add(voxelMesh(this.grid));
+    this.shell = voxelMesh(this.grid); // also what blocks your gaze: you can't use things through a wall
+    this.group.add(this.shell);
   }
 
   _box(x0, y0, z0, x1, y1, z1, paint) {
@@ -220,7 +221,9 @@ export class House {
     this._box(3.4, f, 75.4, 6.6, f + 0.1, 77.8, grain('#a85a4a', 0.5)); // the rug: one voxel thick, so it's a step you won't notice
 
     // ── Shelf and kitchen counter, under the loft ─────────────────────────
-    this._box(x0 + 0.1, f, 79.4, x0 + 0.5, f + 2.0, 81.6, LOG);
+    // An open shelf: back, two sides, boards. (A solid block swallowed the coin jar.)
+    this._box(x0 + 0.1, f, 79.4, x0 + 0.2, f + 2.0, 81.6, LOG);
+    for (const sz of [79.4, 81.5]) this._box(x0 + 0.1, f, sz, x0 + 0.55, f + 2.0, sz + 0.1, LOG);
     for (const sy of [0.5, 1.1, 1.7]) this._box(x0 + 0.1, f + sy, 79.4, x0 + 0.55, f + sy + 0.05, 81.6, DARK);
     col.addBox(x0, 79.4, x0 + 0.55, 81.6, f, f + 2);
     this._box(6.0, f, z1 - 0.65, 10.4, f + 0.9, z1 - 0.1, LOG);

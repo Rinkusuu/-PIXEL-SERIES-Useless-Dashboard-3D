@@ -25,6 +25,9 @@ const POST_FS = /* glsl */ `
   uniform float uExposure;
   uniform vec3 uLift;
   uniform vec3 uGain;
+  uniform sampler2D tMask;
+  uniform vec2 uTexel;
+  uniform vec3 uOutline;
   varying vec2 vUv;
 
   vec3 aces(vec3 x) { // Narkowicz's fit
@@ -43,7 +46,14 @@ const POST_FS = /* glsl */ `
     vec3 bloom = texture2D(tBloom, vUv).rgb * uBloom;
     c = 1.0 - (1.0 - c) * (1.0 - clamp(bloom, 0.0, 1.0));
     float v = smoothstep(1.15, 0.35, length(vUv - 0.5) * 1.4);
-    gl_FragColor = vec4(toSrgb(c * mix(0.78, 1.0, v)), 1.0);
+    c *= mix(0.78, 1.0, v);
+    // A 1 px outline round whatever you are looking at: outside the mask, next to it.
+    if (texture2D(tMask, vUv).r < 0.5) {
+      float edge = max(max(texture2D(tMask, vUv + vec2(uTexel.x, 0.0)).r, texture2D(tMask, vUv - vec2(uTexel.x, 0.0)).r),
+                       max(texture2D(tMask, vUv + vec2(0.0, uTexel.y)).r, texture2D(tMask, vUv - vec2(0.0, uTexel.y)).r));
+      c = mix(c, uOutline, step(0.5, edge));
+    }
+    gl_FragColor = vec4(toSrgb(c), 1.0);
   }
 `;
 
@@ -81,6 +91,9 @@ export class Post {
         uExposure: { value: 1 },
         uLift: { value: new Color() },
         uGain: { value: new Color(1, 1, 1) },
+        tMask: { value: null },
+        uTexel: { value: new Vector2() },
+        uOutline: { value: new Color() },
       },
       depthTest: false,
       depthWrite: false,
@@ -102,6 +115,7 @@ export class Post {
     u.uLift.value.setRGB((z[0] / 255) * 0.07, (z[1] / 255) * 0.07, (z[2] / 255) * 0.09);
     const g = pal.glow;
     u.uGain.value.setRGB(0.92 + (g[0] / 255) * 0.1, 0.92 + (g[1] / 255) * 0.1, 0.92 + (g[2] / 255) * 0.08);
+    u.uOutline.value.setRGB(g[0] / 255, g[1] / 255, g[2] / 255, 'srgb'); // the key light's colour
     // Night is dark, but a pitch-black screen is not a place: expose up a little after dusk.
     u.uExposure.value = 1.05 + (1 - pal.lum) * 0.5;
   }

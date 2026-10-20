@@ -9,7 +9,7 @@ import { el } from '../core/util.js';
 import { store } from '../core/store.js';
 
 export class Hud {
-  constructor(onUse, onWatch) {
+  constructor(onUse, onWatch, onPocket) {
     this.tipLabel = el('span');
     this.tipKey = el('span.w3d__key', { text: '  [E]' });
     this.tip = el('div.w3d__tip', { role: 'status', 'aria-live': 'polite' }, [this.tipLabel, this.tipKey]);
@@ -23,13 +23,14 @@ export class Hud {
     // The clock's timer role, as the classic Local Time panel has it: the minute, never the second.
     this.timer = el('p.sr-only', { role: 'timer', 'aria-live': 'off' });
     this.watchBtn = el('button.btn.w3d__watch', { type: 'button', 'aria-label': 'Glance at your watch', text: '⌚', onclick: onWatch });
-    this.root = el('div.w3d', {}, [el('div.w3d__dot'), this.tip, this.stick, this.use, this.watchBtn, this.hints, this.fade, this.live, this.timer]);
+    this.pocketBtn = el('button.btn.w3d__pocket', { type: 'button', 'aria-label': 'Open your pocket book', text: '📖', onclick: onPocket });
+    this.root = el('div.w3d', {}, [el('div.w3d__dot'), this.tip, this.stick, this.use, this.watchBtn, this.pocketBtn, this.hints, this.fade, this.live, this.timer]);
     document.body.append(this.root);
 
     const touch = matchMedia('(pointer: coarse)').matches;
     this.hints.innerHTML = touch
       ? 'left thumb walks · right thumb looks<br>tap the ground to go there'
-      : 'click to look around · wasd walks · e uses<br>q glances at your watch · esc lets go of the mouse';
+      : 'click to look around · wasd walks · e uses<br>q glances at your watch · b opens your pocket book';
     this.hints.hidden = Boolean(store.get('hints3d'));
     this._target = null;
   }

@@ -392,3 +392,16 @@ Captures: `p2v-{1366,390}-*` (plus `p2v-1366-yard-night`) next to the low-poly `
 | Zen | **E on the bench (or the hilltop rock) → sit down + Zen**; Esc stands up. |
 
 Implementation note: panels stay mounted in `#grid` (they run the weather/ISS/coin loops). Opening one or the pocket book shows the grid as an overlay, filtered to one panel or showing all. Nothing is moved and no widget changes.
+
+### P3.1 — Wristwatch (done)
+Voxel arm + watch (2.5 cm voxels) attached to the camera. Q raises it, Q steps through time / weather / ISS, and Q again or Esc lowers it. The face is a 32×24 canvas in the classic 3×5 font (`:` `°` `/` added to `ui/pixel.js`). It buzzes once when the ISS becomes visible after dark. Reduced motion fades instead of swinging. The screen reader hears each page through `hud.announce`, plus a per-minute `role="timer"`. Touch gets a ⌚ button. `watchPages` is pure and has 5 tests.
+
+### P3.2 — Objects, outline, panels, pocket book (in progress: working, not finished)
+Done:
+- 14 objects (`world/objects.js`, 2.5 cm voxels): clock, barometer, telescope, mailbox, fortune jar, corkboard, radio, ambience knobs, mirror, kettle, coin jar, certificates, fishing rod, slime. All 14 can be targeted from a natural standing spot (automated check), and E opens the real panel. A test checks that the mapping matches the widget titles.
+- **1 px outline** in the palette glow colour: a mask pass that shares the world's depth, edged in the post pass.
+- The cabin's walls now block your gaze, so you can't use things through a wall.
+- `ui/panels.js`: panels and the **pocket book** (B, 📖 on touch) open as a filtered overlay of `#grid`. Esc or a tap on the backdrop closes them, and walking/pointer lock are released while one is open. ⌘K in 3D has "Open: <panel>" for every panel, plus the pocket book.
+- Fixes: the shelf was a solid block (it swallowed the coin jar) and is now an open frame. `teleport` and `lookAt` debug helpers added.
+
+Left for next session: P3.2 captures + perf pass; P3.3 (Zen on the bench/rock, photo mode); P3.4 (Playwright e2e: out the door → glance at the watch → open the corkboard).

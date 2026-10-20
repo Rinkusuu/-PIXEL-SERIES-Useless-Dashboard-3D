@@ -20,6 +20,7 @@ import { zen } from '../core/zen.js';
 import { el, $, clamp } from '../core/util.js';
 import { SEASON_KEYS, SEASON_ICON } from '../sky/season.js';
 import { play, MODES } from '../core/play.js';
+import { openPanel, openPocket, panelTitles } from './panels.js';
 
 /**
  * Subsequence fuzzy match. Returns a score, or -1 for no match.
@@ -80,6 +81,11 @@ export function initCommandPalette({ mode, postcard, switchMode, settings }) {
       ? { icon: '🖼️', label: 'Classic dashboard', hint: 'the painting, with the panels', run: () => switchMode('classic') }
       : { icon: '🚪', label: 'Walk into the world', hint: 'the 3D one', run: () => switchMode('3d') },
     ...(settings ? [{ icon: '⚙️', label: 'World settings', hint: 'field of view, head bob, snap turn, quality', run: () => settings.toggle() }] : []),
+    // In the world, every panel is one command away, wherever you are standing.
+    ...(mode === '3d' ? [
+      { icon: '📖', label: 'Open the pocket book', hint: 'every panel at once', run: () => openPocket() },
+      ...panelTitles().map((t) => ({ icon: '🪟', label: `Open: ${t}`, hint: 'the panel, over the world', run: () => openPanel(t) })),
+    ] : []),
     ...(mode === '3d' ? [] : [
       {
         icon: '🪟',

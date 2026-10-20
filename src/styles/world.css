@@ -159,7 +159,15 @@
   pointer-events: auto;
   display: none;
 }
-:root[data-touch] .w3d__watch {
+.w3d__pocket {
+  position: absolute;
+  right: var(--px6);
+  bottom: calc(var(--px8) * 3 + 112px);
+  pointer-events: auto;
+  display: none;
+}
+:root[data-touch] .w3d__watch,
+:root[data-touch] .w3d__pocket {
   display: inline-flex;
 }
 
@@ -193,4 +201,34 @@
 .wset__val {
   min-width: 4ch;
   color: var(--amb-glow);
+}
+
+/* ── Panels over the world ─────────────────────────────────────────────── */
+/* One panel (opened from an object) or all of them (the pocket book), drawn
+   from the same #grid the classic dashboard uses, over a dimmed live world. */
+:root[data-mode='3d'][data-overlay] .grid {
+  display: grid;
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-toast);
+  padding: calc(var(--px8) * 2.5) clamp(var(--px3), 4vw, var(--px8)) var(--px8);
+  overflow-y: auto;
+  align-content: start;
+  background: color-mix(in oklab, #05060c 46%, transparent);
+  backdrop-filter: blur(3px);
+}
+:root[data-mode='3d'][data-overlay='panel'] .grid {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+:root[data-mode='3d'][data-overlay='panel'] .grid > .panel:not([data-focus]) {
+  display: none;
+}
+:root[data-mode='3d'][data-overlay='panel'] .grid > .panel[data-focus] {
+  width: min(92vw, 560px);
+}
+:root[data-mode='3d'][data-overlay] .w3d__dot,
+:root[data-mode='3d'][data-overlay] .w3d__tip {
+  display: none;
 }

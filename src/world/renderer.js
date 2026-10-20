@@ -20,7 +20,7 @@
    ========================================================================== */
 
 import {
-  Color, DataTexture, DepthTexture, HalfFloatType, LinearFilter, PCFShadowMap,
+  Color, DataTexture, DepthTexture, HalfFloatType, LinearFilter, MeshBasicMaterial, NearestFilter, PCFShadowMap,
   RGBAFormat, WebGLRenderer, WebGLRenderTarget,
 } from 'three';
 import { Post } from './post.js';
@@ -51,6 +51,8 @@ export class Pipeline {
     const depth = new DepthTexture(1, 1);
     this.sceneRT = new WebGLRenderTarget(1, 1, { ...linear, depthTexture: depth });
     this.glowRT = new WebGLRenderTarget(1, 1, { ...linear, depthTexture: depth }); // shares the world's depth
+    this.maskRT = new WebGLRenderTarget(1, 1, { minFilter: NearestFilter, magFilter: NearestFilter, depthTexture: depth }); // so does the outline mask
+    this.white = new MeshBasicMaterial({ color: 0xffffff, depthWrite: false });
     this.bloomRT = new WebGLRenderTarget(1, 1, linear);
     this.fogRT = new WebGLRenderTarget(1, 1, linear);
     this.scratchRT = new WebGLRenderTarget(1, 1, linear);
@@ -73,6 +75,7 @@ export class Pipeline {
     this.renderer.setSize(W, H, false);
     this.sceneRT.setSize(W, H);
     this.glowRT.setSize(W, H);
+    this.maskRT.setSize(W, H);
     const hw = Math.max(1, W >> 1);
     const hh = Math.max(1, H >> 1);
     for (const rt of [this.bloomRT, this.fogRT, this.scratchRT]) rt.setSize(hw, hh);
@@ -116,8 +119,9 @@ export class Pipeline {
    * @param {number} f.bloomStrength
    * @param {DirectionalLight} f.key   the shadow-casting light, for the light shafts
    * @param {object} f.air         { density, lamps: PointLight[] }
+   * @param {Mesh}   [f.outline]   the thing being looked at: drawn into a mask, edged in the post pass
    */
-  render({ bg, world, bgCamera, camera, clear, bloomStrength, key, air }) {
+  render({ bg, world, bgCamera, camera, clear, bloomStrength, key, air, outline }) {
     const r = this.renderer;
     r.shadowMap.needsUpdate = r.shadowMap.enabled;
 
@@ -167,8 +171,24 @@ export class Pipeline {
       bloomTex = this.bloomRT.texture;
     }
 
+    // ── outline mask: only the visible part of the target, thanks to the shared depth ──
+    let maskTex = this.none;
+    if (outline) {
+      this.pass = 'mask';
+      r.setRenderTarget(this.maskRT);
+      r.setClearColor(0x000000, 1);
+      r.clear(true, false, false);
+      const mat = outline.material;
+      outline.material = this.white;
+      r.render(outline, camera);
+      outline.material = mat;
+      maskTex = this.maskRT.texture;
+    }
+
     // ── post ──────────────────────────────────────────────────────────────
     this.pass = 'post';
+    this.post.post.uniforms.tMask.value = maskTex;
+    this.post.post.uniforms.uTexel.value.set(1 / this.W, 1 / this.H);
     this.post.composite(r, this.sceneRT, bloomTex, fogTex, bloomStrength, 1);
     this.pass = 'idle';
   }
