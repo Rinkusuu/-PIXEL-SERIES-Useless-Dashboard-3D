@@ -18,7 +18,7 @@
 
 import { Layer } from '../Layer.js';
 import { horizon } from '../horizon.js';
-import { px } from '../pixel.js';
+import { px } from '../../ui/pixel.js';
 import { bus } from '../../core/bus.js';
 import { store } from '../../core/store.js';
 import { play } from '../../core/play.js';

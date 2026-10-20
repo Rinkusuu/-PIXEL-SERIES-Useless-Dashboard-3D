@@ -19,7 +19,7 @@
    ========================================================================== */
 
 import { Layer } from '../Layer.js';
-import { dot, glowDot } from '../pixel.js';
+import { dot, glowDot } from '../../ui/pixel.js';
 import { bus } from '../../core/bus.js';
 import { rgbCss, clamp, lerp, damp, remap } from '../../core/util.js';
 

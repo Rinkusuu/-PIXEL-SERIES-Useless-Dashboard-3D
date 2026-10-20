@@ -13,7 +13,7 @@
 
 import { Layer } from '../Layer.js';
 import { horizon } from '../horizon.js';
-import { px } from '../pixel.js';
+import { px } from '../../ui/pixel.js';
 import { bus } from '../../core/bus.js';
 import { audio } from '../../core/audio.js';
 import { rgbCss, rng, clamp, lerp, damp, TAU } from '../../core/util.js';

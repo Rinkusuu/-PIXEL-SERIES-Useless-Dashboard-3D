@@ -14,7 +14,7 @@ import { Widget } from './Widget.js';
 import { bus } from '../core/bus.js';
 import { store } from '../core/store.js';
 import { el, pick, rng } from '../core/util.js';
-import { makeSprite } from '../scene/pixel.js';
+import { makeSprite } from '../ui/pixel.js';
 import { unlock } from '../core/achievements.js';
 
 const P = {

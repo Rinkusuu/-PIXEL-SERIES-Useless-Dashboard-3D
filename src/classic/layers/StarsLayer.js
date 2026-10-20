@@ -7,9 +7,9 @@
    ========================================================================== */
 
 import { Layer } from '../Layer.js';
-import { dot, glowDot, pxText, textWidth } from '../pixel.js';
+import { dot, glowDot, pxText, textWidth } from '../../ui/pixel.js';
 import { horizon } from '../horizon.js';
-import { planetPositions } from '../planets.js';
+import { planetPositions } from '../../sky/planets.js';
 import { bus } from '../../core/bus.js';
 import { store } from '../../core/store.js';
 import { play } from '../../core/play.js';

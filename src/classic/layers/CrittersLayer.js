@@ -19,7 +19,7 @@
 
 import { Layer } from '../Layer.js';
 import { horizon } from '../horizon.js';
-import { px, dot, glowDot } from '../pixel.js';
+import { px, dot, glowDot } from '../../ui/pixel.js';
 import { bus } from '../../core/bus.js';
 import { store } from '../../core/store.js';
 import { play } from '../../core/play.js';

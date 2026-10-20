@@ -17,7 +17,7 @@
    ========================================================================== */
 
 import { Layer } from '../Layer.js';
-import { px } from '../pixel.js';
+import { px } from '../../ui/pixel.js';
 import { horizon } from '../horizon.js';
 import { bus } from '../../core/bus.js';
 import { rgbCss, clamp, lerp, mixRgb, rng, fbm1, fbm2, TAU } from '../../core/util.js';

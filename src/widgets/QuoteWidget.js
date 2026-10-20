@@ -22,7 +22,7 @@ import { el } from '../core/util.js';
 import { button } from '../ui/feedback.js';
 import { getQuote } from '../services/quotes.js';
 import { unlock } from '../core/achievements.js';
-import { makeSprite } from '../scene/pixel.js';
+import { makeSprite } from '../ui/pixel.js';
 
 /* The NPC. A little hooded traveller, authored as ASCII right here in the
    source. Two frames: eyes open, eyes shut. */

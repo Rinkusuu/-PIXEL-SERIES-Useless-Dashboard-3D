@@ -9,7 +9,7 @@
    ========================================================================== */
 
 import { Layer } from '../Layer.js';
-import { ditherGradient, px } from '../pixel.js';
+import { ditherGradient, px } from '../../ui/pixel.js';
 import { rgbCss, clamp, fbm1, TAU } from '../../core/util.js';
 
 export class SkyLayer extends Layer {

@@ -9,9 +9,9 @@
    ========================================================================== */
 
 import { Layer } from '../Layer.js';
-import { pxCircle, glowDot } from '../pixel.js';
+import { pxCircle, glowDot } from '../../ui/pixel.js';
 import { horizon } from '../horizon.js';
-import { maxSolarAltitude } from '../season.js';
+import { maxSolarAltitude } from '../../sky/season.js';
 import { rgbCss, clamp, lerp, TAU, remap } from '../../core/util.js';
 
 /** Days since a known new moon (2000-01-06). Good to a few hours for centuries. */

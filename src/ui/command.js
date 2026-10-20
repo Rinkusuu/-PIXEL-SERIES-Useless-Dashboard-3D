@@ -18,7 +18,7 @@ import { audio } from '../core/audio.js';
 import { motion } from '../core/motion.js';
 import { zen } from '../core/zen.js';
 import { el, $, clamp } from '../core/util.js';
-import { SEASON_KEYS, SEASON_ICON } from '../scene/season.js';
+import { SEASON_KEYS, SEASON_ICON } from '../sky/season.js';
 import { savePostcard } from './postcard.js';
 import { play, MODES } from '../core/play.js';
 

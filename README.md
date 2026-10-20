@@ -36,13 +36,13 @@ A second canvas holds only emissive pixels (stars, planets, the moon, fireflies,
 Everything — sky, slime, equaliser, breathing ring, a skipping stone — is driven from `core/ticker.js`. One loop gives one place to clamp `dt`, pause when hidden, and shed particle density under load so quality degrades instead of frame rate.
 
 **5 · The palette is the app's colour system.**
-`scene/palette.js` interpolates nine hand-painted keyframes around the clock, grades them by the weather, tints them by the season, lifts them with your breath — then pushes the result into CSS custom properties. The glass, the buttons and the text all inherit the sky's mood. Nothing hard-codes a colour that ought to breathe.
+`sky/palette.js` interpolates nine hand-painted keyframes around the clock, grades them by the weather, tints them by the season, lifts them with your breath — then pushes the result into CSS custom properties. The glass, the buttons and the text all inherit the sky's mood. Nothing hard-codes a colour that ought to breathe.
 
 **6 · Population is the cheapest storytelling there is.**
-`scene/season.js` doesn't change how anything behaves. It changes *who is out*: butterflies in spring, fireflies on summer nights, a blizzard of dead leaves in October, and a winter meadow where nothing flies at all. Same code, four different worlds.
+`sky/season.js` doesn't change how anything behaves. It changes *who is out*: butterflies in spring, fireflies on summer nights, a blizzard of dead leaves in October, and a winter meadow where nothing flies at all. Same code, four different worlds.
 
 **7 · There are no assets, and no servers either.**
-No sprite sheets, no audio files, no logo, no third-party scripts, no fonts fetched from anyone else — and no ephemeris table for the planets. Every pixel is drawn from ASCII art in the source (`scene/pixel.js`, right down to the 3×5 alphabet the constellations are labelled in), every sound is synthesised (`core/audio.js`), and every celestial body is arithmetic (`scene/planets.js`).
+No sprite sheets, no audio files, no logo, no third-party scripts, no fonts fetched from anyone else — and no ephemeris table for the planets. Every pixel is drawn from ASCII art in the source (`ui/pixel.js`, right down to the 3×5 alphabet the constellations are labelled in), every sound is synthesised (`core/audio.js`), and every celestial body is arithmetic (`sky/planets.js`).
 
 **Total shipped weight: ~59 KB of JavaScript, gzipped, plus 17 KB of font.**
 
@@ -80,15 +80,15 @@ The star field has been generated from a fixed seed since the first commit, so t
 
 Because star #57 is where it was last Tuesday, **a line between two stars can be saved as two integers** and will still point at the same two stars a year from now. You could not build this on a random sky.
 
-And because a line means something, it can be **named**. The name is typed into the dock, and then it hangs in the sky under its own constellation — drawn in a 3×5 bitmap font built from ASCII art in `scene/pixel.js`, because `fillText` at this scale is antialiased and the upscale turns every soft edge into a grey smear. In a world where a star is one hard pixel, a blurry letter reads as a bug. The letters are pixels, like the moon and the cottage and the slime.
+And because a line means something, it can be **named**. The name is typed into the dock, and then it hangs in the sky under its own constellation — drawn in a 3×5 bitmap font built from ASCII art in `ui/pixel.js`, because `fillText` at this scale is antialiased and the upscale turns every soft edge into a grey smear. In a world where a star is one hard pixel, a blurry letter reads as a bug. The letters are pixels, like the moon and the cottage and the slime.
 
-Names are held clear of the treeline — the forest draws *after* the stars, and the star field runs down past the shoreline, so a constellation can have its feet in a wood. Where the name is hung is decided from `scene/horizon.js`, the one file allowed to know where the ground is.
+Names are held clear of the treeline — the forest draws *after* the stars, and the star field runs down past the shoreline, so a constellation can have its feet in a wood. Where the name is hung is decided from `classic/horizon.js`, the one file allowed to know where the ground is.
 
 Staying nameless is a legitimate answer. The achievement for drawing three of them is called *"Draw three. Name none of them."*
 
 ### 🪐 The four wanderers
 
-Venus, Jupiter, Mars and Saturn, from JPL's approximate Keplerian elements — heliocentric position, geocentric difference, ecliptic to equatorial, sidereal time, hour angle, altitude and azimuth. About ninety lines of trigonometry in `scene/planets.js`. **No network, no ephemeris file, no dependency.** It runs offline in a cave and it will still be right in 2049.
+Venus, Jupiter, Mars and Saturn, from JPL's approximate Keplerian elements — heliocentric position, geocentric difference, ecliptic to equatorial, sidereal time, hour angle, altitude and azimuth. About ninety lines of trigonometry in `sky/planets.js`. **No network, no ephemeris file, no dependency.** It runs offline in a cave and it will still be right in 2049.
 
 It is checked against things that cannot be argued with:
 
@@ -186,17 +186,18 @@ Now it can.
 ```
 src/
   core/       ticker · bus · store · audio · motion · zen · net · play · achievements
-  scene/      Scene · palette · season · horizon · planets · pixel  +  layers/ (15, back to front)
+  sky/        palette · season · planets  (pure: no DOM, no three — shared by both renderers)
+  classic/    Scene · horizon · Layer  +  layers/ (15, back to front)
   widgets/    Widget base  +  15 panels
   services/   weather (Open-Meteo) · iss (wheretheiss.at) · quotes
-  ui/         feedback · zen-ui · command · postcard
+  ui/         feedback · zen-ui · command · postcard · pixel · palette-dom
   styles/     fonts · tokens · base · panels · widgets · overlays
 sw-template.js   the service worker; vite.config.js fills in the asset list
 ```
 
 Modules talk **only** through `core/bus.js`. The scene never imports a widget; no widget imports another. Weather arrives once and the sky, the weather panel, the season's hemisphere, the ISS tracker and the ambient audio all react independently.
 
-`scene/horizon.js` is worth calling out. The shoreline used to be five magic fractions in five different layers — the water drew itself between 0.558 and 0.68, and the weather layer independently *believed* the lake was between 0.558 and 0.68 so it knew where raindrops should ring. Five copies of one fact. Widen the lake in one of them and the rain starts landing on the grass.
+`classic/horizon.js` is worth calling out. The shoreline used to be five magic fractions in five different layers — the water drew itself between 0.558 and 0.68, and the weather layer independently *believed* the lake was between 0.558 and 0.68 so it knew where raindrops should ring. Five copies of one fact. Widen the lake in one of them and the rain starts landing on the grass.
 
 It has since grown a second line: `skyline`, the sky's horizon, which is *not* the water's. It was a bare `0.52` sitting inside `CelestialLayer` until the planets needed to rise from the same line the sun does — which is the exact story that file exists to prevent happening twice.
 

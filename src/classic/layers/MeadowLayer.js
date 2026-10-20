@@ -12,7 +12,7 @@
    ========================================================================== */
 
 import { Layer } from '../Layer.js';
-import { px, BAYER4 } from '../pixel.js';
+import { px, BAYER4 } from '../../ui/pixel.js';
 import { horizon } from '../horizon.js';
 import { rgbCss, rng, clamp, lerp, mixRgb, fbm1, fbm2, TAU } from '../../core/util.js';
 

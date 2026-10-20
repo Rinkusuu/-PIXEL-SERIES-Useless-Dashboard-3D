@@ -20,7 +20,7 @@ import { Widget } from './Widget.js';
 import { bus } from '../core/bus.js';
 import { store } from '../core/store.js';
 import { el, clamp, damp, lerp, mixRgb, hexToRgb, rgbCss, remap } from '../core/util.js';
-import { pxCircle } from '../scene/pixel.js';
+import { pxCircle } from '../ui/pixel.js';
 
 const S = 40; // the face is drawn in a 40×40 buffer and upscaled. Chunky on purpose.
 

@@ -15,7 +15,7 @@ import { bus } from '../core/bus.js';
 import { store } from '../core/store.js';
 import { el } from '../core/util.js';
 import { play, MODES } from '../core/play.js';
-import { FISH } from '../scene/layers/FishingLayer.js';
+import { FISH } from '../classic/layers/FishingLayer.js';
 
 const FISH_BY_ID = new Map(FISH.map((f) => [f.id, f]));
 

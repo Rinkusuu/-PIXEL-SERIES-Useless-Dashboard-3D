@@ -10,7 +10,7 @@
 
 import { Layer } from '../Layer.js';
 import { horizon } from '../horizon.js';
-import { px, glowDot } from '../pixel.js';
+import { px, glowDot } from '../../ui/pixel.js';
 import { rgbCss, rng, clamp, lerp, mixRgb, fbm1, TAU } from '../../core/util.js';
 
 export class ForestLayer extends Layer {

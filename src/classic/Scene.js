@@ -28,9 +28,10 @@ import { audio } from '../core/audio.js';
 import { motion } from '../core/motion.js';
 import { net } from '../core/net.js';
 import { zen } from '../core/zen.js';
-import { getPalette, applyPaletteToDOM } from './palette.js';
-import { getSeason } from './season.js';
-import { glowDot } from './pixel.js';
+import { getPalette } from '../sky/palette.js';
+import { applyPaletteToDOM } from '../ui/palette-dom.js';
+import { getSeason } from '../sky/season.js';
+import { glowDot } from '../ui/pixel.js';
 import { clamp, damp, lerp, rgbCss } from '../core/util.js';
 
 import { SkyLayer } from './layers/SkyLayer.js';

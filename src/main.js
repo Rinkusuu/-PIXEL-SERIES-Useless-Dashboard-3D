@@ -25,10 +25,10 @@ import { initServiceWorker } from './core/net.js';
 import { play } from './core/play.js';
 import { $, el } from './core/util.js';
 
-import { Scene } from './scene/Scene.js';
-import { sunPosition } from './scene/planets.js';
-import { makeSprite } from './scene/pixel.js';
-import { SEASON_KEYS, SEASON_ICON } from './scene/season.js';
+import { Scene } from './classic/Scene.js';
+import { sunPosition } from './sky/planets.js';
+import { makeSprite } from './ui/pixel.js';
+import { SEASON_KEYS, SEASON_ICON } from './sky/season.js';
 
 import { ClockWidget } from './widgets/ClockWidget.js';
 import { WeatherWidget } from './widgets/WeatherWidget.js';
