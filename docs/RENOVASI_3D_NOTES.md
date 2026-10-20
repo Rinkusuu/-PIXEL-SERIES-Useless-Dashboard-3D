@@ -375,3 +375,20 @@ How it got there:
 Walk + touch tests rerun on the stepped terrain: all pass (door, out to the yard, closed door stops at 73.82, ladder to the loft, shore, tower deck y 11.5, tap-to-walk, thumbstick).
 
 Captures: `p2v-{1366,390}-*` (plus `p2v-1366-yard-night`) next to the low-poly `p2-*`.
+
+---
+
+## P3 — The dashboard inside the world
+
+### Decisions (2026-10-20, P3 question round)
+| Topic | Decision |
+|---|---|
+| Watch (Q) | **Voxel 3D model on the wrist.** The arm rises into view and the face is a pixel canvas showing **time + date, weather + temperature, ISS** (Q again for the next page). It vibrates when the ISS is visible. |
+| Opening a panel from an object | The real widget, **centred glass panel**, world dimmed and live behind it (as decided in P0). |
+| Outline | **1 px line in the palette's glow colour** (edge-detect on an object mask in the post pass). |
+| Pocket book | **B key** (separate from Q); all panels, scrollable, over the live world. |
+| Photo mode | **Free camera around the player** (radius ~10 m), then PNG export with the postcard frame. |
+| Object detail | **2.5 cm voxels**, very detailed. |
+| Zen | **E on the bench (or the hilltop rock) → sit down + Zen**; Esc stands up. |
+
+Implementation note: panels stay mounted in `#grid` (they run the weather/ISS/coin loops). Opening one or the pocket book shows the grid as an overlay, filtered to one panel or showing all. Nothing is moved and no widget changes.
