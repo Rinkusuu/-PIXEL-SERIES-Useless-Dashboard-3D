@@ -84,3 +84,50 @@ Spec: `docs/spec/RENOVASI_3D.md`. Basis: salinan utuh Useless Dashboard (commit 
 Diukur di P1 setelah `npm run build` (belum dijalankan agar P0 tidak menyentuh apa pun). README mengklaim ~59 KB JS gz + 17 KB font.
 
 ---
+
+## P0.2 — Rencana migrasi store `uad.v1` → `uad.v2`
+
+**Prinsip:** baca `uad.v1` kalau `uad.v2` belum ada, normalisasi, tulis `uad.v2`, **jangan hapus `uad.v1`** (Mode Klasik versi lama yang ter-cache SW masih bisa membacanya; rollback aman). Satu fungsi murni `migrate(raw) → state` agar bisa dites.
+
+```
+read():
+  v2 = parse(localStorage['uad.v2'])
+  if v2  → return migrate(v2)            # idempoten: v2 lewat apa adanya + kunci baru
+  v1 = parse(localStorage['uad.v1'])
+  if v1  → return migrate(v1)            # tulis ke uad.v2 saat flush pertama
+  return structuredClone(DEFAULTS)
+```
+
+**Aturan `migrate`:**
+- Semua kunci v1 dibawa apa adanya, termasuk yang tidak di DEFAULTS (`coffeeDay`, `seasonsSeen`). Kunci tak dikenal **tidak dibuang**.
+- Normalisasi tipe: `coins` → angka ≥ 0; `catches`, `achievements`, `inventory`, `seasonsSeen` → array string unik; `stars` → array `{ name: string, pts: int[] (0–189), at: number }`, entri dengan indeks di luar rentang dibuang satu-satu (bukan seluruh daftar); `mix` → objek 4 kunci 0–1.
+- Tambah `v: 2`.
+- Tambah blok 3D dengan default:
+  - `mode: 'auto'` (`'auto' | 'classic' | '3d'`; auto = 3D bila WebGL2 ada)
+  - `player: { x, z, yaw, pitch, area }` — `null` = bangun di pondok
+  - `view: { fov: 70, headBob: false, snapTurn: false, pointerLock: false, quality: 'auto' }`
+
+**Contoh — masuk (v1):**
+```json
+{ "sound": true, "volume": 0.4, "coins": 312.6, "mood": 71,
+  "mix": { "rain": 0.5, "wind": 0, "crickets": 0.2, "hearth": 0 },
+  "achievements": ["arrive","angler","angler"], "catches": ["carp","boot"],
+  "stars": [{ "name": "Ladle", "pts": [57,12,190], "at": 1760000000000 }],
+  "coffeeDay": "2026-10-19", "seasonsSeen": ["autumn"], "glass": true }
+```
+**Keluar (v2):**
+```json
+{ "v": 2, "sound": true, "volume": 0.4, "coins": 312.6, "mood": 71,
+  "mix": { "rain": 0.5, "wind": 0, "crickets": 0.2, "hearth": 0 },
+  "achievements": ["arrive","angler"], "catches": ["carp","boot"],
+  "stars": [{ "name": "Ladle", "pts": [57,12], "at": 1760000000000 }],
+  "coffeeDay": "2026-10-19", "seasonsSeen": ["autumn"], "glass": true,
+  "mode": "auto", "player": null,
+  "view": { "fov": 70, "headBob": false, "snapTurn": false, "pointerLock": false, "quality": "auto" },
+  "...": "semua DEFAULTS lain yang belum ada" }
+```
+(Indeks 190 di luar 0–189 dibuang; rasi tetap ada karena masih 2 titik. Rasi yang tersisa < 2 titik dibuang.)
+
+**Tes (Vitest, P1):** v1 kosong → DEFAULTS; v1 penuh → tidak ada kunci/nilai yang hilang; idempoten (`migrate(migrate(x)) == migrate(x)`); JSON rusak → DEFAULTS tanpa throw; `uad.v1` tetap ada setelah flush.
+
+---
