@@ -51,6 +51,7 @@ import './ui/feedback.js'; // registers the toast listener
 import { initZen } from './ui/zen-ui.js';
 import { initCommandPalette } from './ui/command.js';
 import { savePostcard } from './ui/postcard.js';
+import { initWorldSettings } from './ui/world-settings.js';
 
 /* ── The brand sigil ─────────────────────────────────────────────────────────
    A 16×16 leaf-in-a-diamond, drawn in code so there is no logo file to ship.
@@ -144,7 +145,7 @@ function tbtn({ emoji, text, title, ghost = false, onClick }) {
   return { node, ico, txt };
 }
 
-function wireTopbar({ mode, palette, postcard: savePostcardNow }) {
+function wireTopbar({ mode, palette, postcard: savePostcardNow, settings }) {
   const tools = $('.topbar__tools');
 
   /* ── Sound ─────────────────────────────────────────────────────────────── */
@@ -290,11 +291,17 @@ function wireTopbar({ mode, palette, postcard: savePostcardNow }) {
     onClick: () => palette.show(),
   });
 
+  const worldBtn = tbtn({
+    emoji: '⚙️',
+    text: 'World',
+    title: 'Field of view, head bob, snap turn, quality',
+    onClick: () => settings?.toggle(),
+  });
+
   // The world has no panels to clear yet and no camera to photograph with: in
   // 3D, Glass and Postcard wait for the pocket book and photo mode (P3).
   tools.append(
-    ...(mode === '3d' ? [season.node, zenBtn.node] : [season.node, glassBtn.node, zenBtn.node, postcard.node]),
-    modeBtn.node,
+    ...(mode === '3d' ? [season.node, zenBtn.node, worldBtn.node] : [season.node, glassBtn.node, zenBtn.node, postcard.node, modeBtn.node]),
     paletteBtn.node,
   );
 
@@ -422,14 +429,17 @@ function boot() {
 
   initAchievements();
   initZen();
-  const palette = initCommandPalette({ mode, postcard, switchMode });
+  const settings = mode === '3d' ? initWorldSettings({ switchMode }) : null;
+  const palette = initCommandPalette({ mode, postcard, switchMode, settings });
 
-  wireTopbar({ mode, palette, postcard });
+  wireTopbar({ mode, palette, postcard, settings });
 
   // FPS, once a second. Sixty times a second would cost more than it measures.
   const fps = $('#fpsReadout');
+  let tier = '';
+  bus.on('world:tier', (t) => (tier = ` · ${t}`));
   bus.on('second', () => {
-    if (fps) fps.textContent = `${Math.round(ticker.fps)} fps`;
+    if (fps) fps.textContent = `${Math.round(ticker.fps)} fps${tier}`;
   });
 
   /* Losing the network is announced exactly once, quietly, and then the world

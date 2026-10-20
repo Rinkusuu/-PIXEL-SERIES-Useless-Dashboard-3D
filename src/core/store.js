@@ -58,6 +58,7 @@ const DEFAULTS = {
   mode: 'auto', // 'auto' (3D when WebGL2 exists) | 'classic' | '3d'
   player: null, // { x, y, z, yaw, pitch } — null wakes you in the loft bed
   view: { fov: 70, headBob: false, snapTurn: false, pointerLock: true, quality: 'auto' },
+  hints3d: false, // the walking hints were shown and understood
 };
 
 function read() {

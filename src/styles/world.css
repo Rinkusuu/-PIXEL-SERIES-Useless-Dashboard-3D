@@ -1,0 +1,185 @@
+/* ============================================================================
+   world.css — the HUD of the walkable world. Same Pixel-Glass vocabulary as
+   the panels: notched frames, hard text shadows, the ambient colour roles.
+   ========================================================================== */
+
+/* The page shell sits over the world. In 3D, only its real controls catch the
+   pointer; everything else falls through to the canvas. */
+:root[data-mode='3d'] .app {
+  pointer-events: none;
+}
+:root[data-mode='3d'] .app > * {
+  pointer-events: auto;
+}
+:root[data-mode='3d'] .world__canvas--3d {
+  cursor: crosshair;
+  touch-action: none;
+}
+
+.w3d {
+  position: fixed;
+  inset: 0;
+  z-index: calc(var(--z-app) - 1);
+  pointer-events: none;
+  font-family: var(--font-ui);
+  color: var(--amb-ink);
+}
+
+/* The 1 px centre dot, scaled with the world's pixels so it is one of THEM. */
+.w3d__dot {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: var(--w3d-px, 3px);
+  height: var(--w3d-px, 3px);
+  transform: translate(-50%, -50%);
+  background: var(--amb-ink);
+  box-shadow: 0 0 0 1px rgb(0 0 0 / 0.45);
+  opacity: 0.85;
+}
+.w3d[data-target] .w3d__dot {
+  background: var(--amb-glow);
+  opacity: 1;
+}
+:root:not([data-locked]) .w3d__dot,
+:root[data-touch] .w3d__dot {
+  opacity: 0.35;
+}
+
+.w3d__tip {
+  position: absolute;
+  left: 50%;
+  top: calc(50% + var(--px6));
+  transform: translateX(-50%);
+  padding: var(--px) var(--px2);
+  font-size: var(--fs-micro);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  background: color-mix(in oklab, var(--amb-deep) 86%, transparent);
+  box-shadow:
+    0 calc(-1 * var(--px)) 0 0 var(--glass-edge),
+    0 var(--px) 0 0 var(--glass-edge),
+    calc(-1 * var(--px)) 0 0 0 var(--glass-edge),
+    var(--px) 0 0 0 var(--glass-edge);
+  text-shadow: 2px 2px 0 rgb(0 0 0 / 0.5);
+  opacity: 0;
+  transition: opacity var(--dur-fast) linear;
+}
+.w3d[data-target] .w3d__tip {
+  opacity: 1;
+}
+.w3d__key {
+  color: var(--amb-glow);
+}
+
+.w3d__hints {
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--px8) * 3);
+  transform: translateX(-50%);
+  max-width: min(92vw, 560px);
+  padding: var(--px3) var(--px4);
+  font-size: var(--fs-micro);
+  line-height: 1.9;
+  letter-spacing: 0.06em;
+  text-align: center;
+  text-transform: uppercase;
+  background: var(--glass-bg);
+  backdrop-filter: blur(8px);
+  box-shadow:
+    0 calc(-1 * var(--px)) 0 0 var(--glass-edge),
+    0 var(--px) 0 0 var(--glass-edge),
+    calc(-1 * var(--px)) 0 0 0 var(--glass-edge),
+    var(--px) 0 0 0 var(--glass-edge),
+    inset 0 var(--px) 0 0 var(--glass-hi);
+  text-shadow: 2px 2px 0 rgb(0 0 0 / 0.45);
+  transition: opacity var(--dur-slow) linear;
+}
+.w3d__hints[hidden] {
+  display: block;
+  opacity: 0;
+}
+
+/* Waking up: black, then the room. A fade under reduced motion too — a fade is not motion. */
+.w3d__fade {
+  position: absolute;
+  inset: 0;
+  background: #000;
+  opacity: 1;
+  transition: opacity 2.4s ease-in;
+}
+.w3d__fade[data-done] {
+  opacity: 0;
+}
+
+/* ── Touch ─────────────────────────────────────────────────────────────── */
+.w3d__stick {
+  position: absolute;
+  width: 112px;
+  height: 112px;
+  margin: -56px 0 0 -56px;
+  border-radius: 0;
+  background: color-mix(in oklab, var(--amb-deep) 50%, transparent);
+  box-shadow:
+    0 calc(-1 * var(--px)) 0 0 var(--glass-edge),
+    0 var(--px) 0 0 var(--glass-edge),
+    calc(-1 * var(--px)) 0 0 0 var(--glass-edge),
+    var(--px) 0 0 0 var(--glass-edge);
+  opacity: 0;
+}
+.w3d__stick[data-on] {
+  opacity: 1;
+}
+.w3d__knob {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 40px;
+  height: 40px;
+  margin: -20px 0 0 -20px;
+  background: var(--amb-lift);
+  box-shadow: inset 0 var(--px) 0 0 var(--glass-hi), inset 0 calc(-1 * var(--px)) 0 0 var(--glass-lo);
+}
+.w3d__use {
+  position: absolute;
+  right: var(--px6);
+  bottom: calc(var(--px8) * 3);
+  pointer-events: auto;
+  display: none;
+}
+:root[data-touch] .w3d[data-target] .w3d__use {
+  display: inline-flex;
+}
+
+/* ── World settings ────────────────────────────────────────────────────── */
+.wset {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  z-index: var(--z-toast);
+  width: min(92vw, 460px);
+  transform: translate(-50%, -50%);
+}
+.wset[hidden] {
+  display: none;
+}
+.wset__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--px2);
+  margin-block: var(--px3);
+  font-family: var(--font-ui);
+  font-size: var(--fs-micro);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.wset__range {
+  flex: 1;
+  accent-color: var(--amb-accent);
+}
+.wset__val {
+  min-width: 4ch;
+  color: var(--amb-glow);
+}

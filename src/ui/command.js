@@ -55,7 +55,7 @@ function fuzzy(needle, haystack) {
   return score - h.length * 0.02;
 }
 
-export function initCommandPalette({ mode, postcard, switchMode }) {
+export function initCommandPalette({ mode, postcard, switchMode, settings }) {
   /* ── The action list ────────────────────────────────────────────────────────
      Each command is { id, icon, label, hint, run }. Nothing here reimplements
      anything; `run` calls the same code the UI does. */
@@ -79,6 +79,7 @@ export function initCommandPalette({ mode, postcard, switchMode }) {
     mode === '3d'
       ? { icon: '🖼️', label: 'Classic dashboard', hint: 'the painting, with the panels', run: () => switchMode('classic') }
       : { icon: '🚪', label: 'Walk into the world', hint: 'the 3D one', run: () => switchMode('3d') },
+    ...(settings ? [{ icon: '⚙️', label: 'World settings', hint: 'field of view, head bob, snap turn, quality', run: () => settings.toggle() }] : []),
     ...(mode === '3d' ? [] : [
       {
         icon: '🪟',
