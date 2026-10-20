@@ -1,82 +1,15 @@
 /* ============================================================================
-   post.js — the one post pass, the bloom blur, and the palette LUT.
+   post.js — the frame's last steps: blur, volumetric light, grade.
 
-   The frame is rendered small (240–360 rows), then this pass:
-     1. converts it to sRGB,
-     2. adds a Bayer 4×4 offset (the same matrix the classic sky dithers with),
-     3. snaps it through a 16³ LUT to a palette DERIVED FROM THE CURRENT
-        KEYFRAME — so the world at dusk is literally drawn in dusk's colours,
-     4. screen-blends the blurred emissive buffer on top (bloom stays smooth,
-        like the classic CSS blur: only the world is hard-edged).
-   A 3-D LUT makes step 3 cost one texture fetch however many colours there are.
+   The world is rendered at native resolution into a linear HDR target. This
+   pass adds the blurred volumetric in-scatter (light shafts, lamp halos),
+   screen-blends the blurred emissive buffer (bloom), tone-maps with ACES, and
+   grades with the palette: shadows lifted toward the sky's zenith colour,
+   highlights warmed toward the key light, a soft vignette. The palette still
+   decides the mood of every frame; it just no longer snaps colours to a set.
    ========================================================================== */
 
-import {
-  Data3DTexture, Mesh, NearestFilter, OrthographicCamera, PlaneGeometry, RGBAFormat,
-  Scene, ShaderMaterial, UnsignedByteType, Vector2,
-} from 'three';
-
-export const LUT_SIZE = 16;
-
-/* Material base colours the quantiser must be able to reach, lit at several
-   strengths by the palette itself. If you add a material whose colour is far
-   from all of these, add its hex here or it will snap to a neighbour. */
-const SWATCHES = [
-  '#5f9a4a', '#86b85e', '#3f7a46', '#2f5e45', // grass, meadow light, leaf, pine
-  '#9a7a52', '#cdbb8a', '#6b5a48', // dirt, sand, wet earth
-  '#9a6a44', '#5e4030', '#c08a5a', '#a0764e', '#c9b8a6', // wood, dark wood, warm interior, floor, pale wood
-  '#8d8d96', '#6a6a72', '#7a4a3a', // stone, dark stone, roof
-  '#3a6a8a', '#e8eef5', // water, snow
-  '#d07a6a', '#c8a0d8', '#f0d070', // flowers: rose, lilac, butter
-];
-const LEVELS = [0.3, 0.55, 0.8, 1.05, 1.3];
-
-/**
- * The quantisation palette for this moment, as [r, g, b] 0–255 tuples.
- * Pure (takes the palette object), so it can be tested.
- */
-export function quantColors(pal) {
-  const out = [];
-  for (const hex of SWATCHES) for (const k of LEVELS) out.push(pal.lit(hex, k));
-  const [z, m, h] = pal.sky;
-  const mid = (a, b) => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2];
-  out.push(z, m, h, mid(z, m), mid(m, h), pal.fog, pal.glow, pal.accent, pal.sun, pal.ink);
-  out.push([10, 10, 18], [24, 22, 36], [255, 207, 122], [255, 154, 74], [255, 244, 220]); // ink, shadow, the warm lights
-  return out.map((c) => c.map((v) => Math.max(0, Math.min(255, v))));
-}
-
-/** Fill a 16³ RGBA LUT: every cell holds its nearest palette colour (red-mean distance). */
-export function buildLut(colors, data = new Uint8Array(LUT_SIZE ** 3 * 4)) {
-  const n = LUT_SIZE;
-  let i = 0;
-  for (let b = 0; b < n; b++) {
-    for (let g = 0; g < n; g++) {
-      for (let r = 0; r < n; r++) {
-        const R = (r / (n - 1)) * 255;
-        const G = (g / (n - 1)) * 255;
-        const B = (b / (n - 1)) * 255;
-        let best = colors[0];
-        let bestD = Infinity;
-        for (const c of colors) {
-          const rm = (R + c[0]) / 2;
-          const dr = R - c[0];
-          const dg = G - c[1];
-          const db = B - c[2];
-          const d = (2 + rm / 256) * dr * dr + 4 * dg * dg + (2 + (255 - rm) / 256) * db * db;
-          if (d < bestD) {
-            bestD = d;
-            best = c;
-          }
-        }
-        data[i++] = best[0];
-        data[i++] = best[1];
-        data[i++] = best[2];
-        data[i++] = 255;
-      }
-    }
-  }
-  return data;
-}
+import { Color, Mesh, OrthographicCamera, PlaneGeometry, Scene, ShaderMaterial, Vector2 } from 'three';
 
 const FULLSCREEN_VS = /* glsl */ `
   varying vec2 vUv;
@@ -86,32 +19,31 @@ const FULLSCREEN_VS = /* glsl */ `
 const POST_FS = /* glsl */ `
   uniform sampler2D tScene;
   uniform sampler2D tBloom;
-  uniform sampler3D tLut;
+  uniform sampler2D tFog;
   uniform float uBloom;
-  uniform float uDither;
-  uniform float uLutMix;
+  uniform float uFog;
+  uniform float uExposure;
+  uniform vec3 uLift;
+  uniform vec3 uGain;
   varying vec2 vUv;
 
-  float bayer4(vec2 p) {
-    ivec2 i = ivec2(mod(p, 4.0));
-    int k = i.x + i.y * 4;
-    int m[16] = int[16](0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5);
-    return (float(m[k]) + 0.5) / 16.0;
+  vec3 aces(vec3 x) { // Narkowicz's fit
+    return clamp((x * (2.51 * x + 0.03)) / (x * (2.43 * x + 0.59) + 0.14), 0.0, 1.0);
   }
-
   vec3 toSrgb(vec3 c) {
     c = clamp(c, 0.0, 1.0);
     return mix(c * 12.92, 1.055 * pow(c, vec3(1.0 / 2.4)) - 0.055, step(0.0031308, c));
   }
 
   void main() {
-    vec3 c = toSrgb(texture2D(tScene, vUv).rgb);
-    c += (bayer4(gl_FragCoord.xy) - 0.5) * uDither / ${LUT_SIZE - 1}.0;
-    c = clamp(c, 0.0, 1.0);
-    vec3 q = texture(tLut, c * ${(LUT_SIZE - 1) / LUT_SIZE} + ${0.5 / LUT_SIZE}).rgb;
-    c = mix(c, q, uLutMix);
-    vec3 bloom = toSrgb(texture2D(tBloom, vUv).rgb) * uBloom;
-    gl_FragColor = vec4(1.0 - (1.0 - c) * (1.0 - bloom), 1.0);
+    vec3 c = texture2D(tScene, vUv).rgb;
+    c += texture2D(tFog, vUv).rgb * uFog;
+    c = aces(c * uExposure);
+    c = c * uGain + uLift * (1.0 - c); // lift the shadows toward the sky, tint the highlights
+    vec3 bloom = texture2D(tBloom, vUv).rgb * uBloom;
+    c = 1.0 - (1.0 - c) * (1.0 - clamp(bloom, 0.0, 1.0));
+    float v = smoothstep(1.15, 0.35, length(vUv - 0.5) * 1.4);
+    gl_FragColor = vec4(toSrgb(c * mix(0.78, 1.0, v)), 1.0);
   }
 `;
 
@@ -131,13 +63,6 @@ const BLUR_FS = /* glsl */ `
 
 export class Post {
   constructor() {
-    this.lutData = new Uint8Array(LUT_SIZE ** 3 * 4);
-    this.lut = new Data3DTexture(this.lutData, LUT_SIZE, LUT_SIZE, LUT_SIZE);
-    this.lut.format = RGBAFormat;
-    this.lut.type = UnsignedByteType;
-    this.lut.minFilter = this.lut.magFilter = NearestFilter;
-    this.lut.unpackAlignment = 1;
-
     this.camera = new OrthographicCamera(-1, 1, 1, -1, 0, 1);
     this.quad = new Mesh(new PlaneGeometry(2, 2));
     this.quad.frustumCulled = false;
@@ -150,10 +75,12 @@ export class Post {
       uniforms: {
         tScene: { value: null },
         tBloom: { value: null },
-        tLut: { value: this.lut },
+        tFog: { value: null },
         uBloom: { value: 0.85 },
-        uDither: { value: 1 },
-        uLutMix: { value: 1 },
+        uFog: { value: 1 },
+        uExposure: { value: 1 },
+        uLift: { value: new Color() },
+        uGain: { value: new Color(1, 1, 1) },
       },
       depthTest: false,
       depthWrite: false,
@@ -168,31 +95,40 @@ export class Post {
     });
   }
 
+  /** The grade, from the palette: called at the palette's 4 Hz, not per frame. */
   setPalette(pal) {
-    buildLut(quantColors(pal), this.lutData);
-    this.lut.needsUpdate = true;
+    const u = this.post.uniforms;
+    const z = pal.sky[0];
+    u.uLift.value.setRGB((z[0] / 255) * 0.07, (z[1] / 255) * 0.07, (z[2] / 255) * 0.09);
+    const g = pal.glow;
+    u.uGain.value.setRGB(0.92 + (g[0] / 255) * 0.1, 0.92 + (g[1] / 255) * 0.1, 0.92 + (g[2] / 255) * 0.08);
+    // Night is dark, but a pitch-black screen is not a place: expose up a little after dusk.
+    u.uExposure.value = 1.05 + (1 - pal.lum) * 0.5;
   }
 
-  _draw(renderer, material, target) {
+  draw(renderer, material, target) {
     this.quad.material = material;
     renderer.setRenderTarget(target);
     renderer.render(this.scene, this.camera);
   }
 
-  /** Two-pass blur, ping-ponging between the bloom target and a scratch one. */
-  blurBloom(renderer, bloomRT, scratchRT) {
-    this.blur.uniforms.tInput.value = bloomRT.texture;
-    this.blur.uniforms.uDir.value.set(1 / bloomRT.width, 0);
-    this._draw(renderer, this.blur, scratchRT);
-    this.blur.uniforms.tInput.value = scratchRT.texture;
-    this.blur.uniforms.uDir.value.set(0, 1 / bloomRT.height);
-    this._draw(renderer, this.blur, bloomRT);
+  /** Two-pass blur: src → scratch (horizontal) → dst (vertical). dst defaults to src. */
+  blurInto(renderer, src, scratch, spread = 1, dst = src) {
+    this.blur.uniforms.tInput.value = src.texture;
+    this.blur.uniforms.uDir.value.set(spread / scratch.width, 0);
+    this.draw(renderer, this.blur, scratch);
+    this.blur.uniforms.tInput.value = scratch.texture;
+    this.blur.uniforms.uDir.value.set(0, spread / scratch.height);
+    this.draw(renderer, this.blur, dst);
   }
 
-  composite(renderer, sceneRT, bloomTex, strength) {
-    this.post.uniforms.tScene.value = sceneRT.texture;
-    this.post.uniforms.tBloom.value = bloomTex;
-    this.post.uniforms.uBloom.value = strength;
-    this._draw(renderer, this.post, null);
+  composite(renderer, sceneRT, bloomTex, fogTex, bloom, fog) {
+    const u = this.post.uniforms;
+    u.tScene.value = sceneRT.texture;
+    u.tBloom.value = bloomTex;
+    u.tFog.value = fogTex;
+    u.uBloom.value = bloom;
+    u.uFog.value = fog;
+    this.draw(renderer, this.post, null);
   }
 }

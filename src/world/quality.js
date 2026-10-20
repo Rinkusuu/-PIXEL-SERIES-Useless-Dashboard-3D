@@ -2,15 +2,16 @@
    quality.js — three tiers, and the rule for picking one.
 
    Every expensive thing in the world has a knob here and nowhere else:
-   internal resolution, grass and tree counts, fog distance, the lake's
-   reflection, shadows, bloom and point lights. The world starts on a guess
-   (desktop: high, touch: medium) and steps down if the first seconds are slow.
+   resolution scale, grass and tree counts, fog distance, the lake's
+   reflection, shadows, volumetric steps, bloom and point lights. The world
+   starts on a guess (desktop: high, touch: medium) and steps down if the
+   first seconds are slow.
    ========================================================================== */
 
 export const TIERS = {
-  low: { name: 'low', rows: 240, grass: 0.15, trees: 0.4, fogFar: 140, reflect: 0, shadows: 0, bloom: false, points: 1 },
-  medium: { name: 'medium', rows: 300, grass: 0.45, trees: 0.7, fogFar: 185, reflect: 0.5, shadows: 1024, bloom: true, points: 3 },
-  high: { name: 'high', rows: 360, grass: 1, trees: 1, fogFar: 230, reflect: 1, shadows: 2048, bloom: true, points: 3 },
+  low: { name: 'low', scale: 0.5, grass: 0.15, trees: 0.4, fogFar: 140, reflect: 0, shadows: 0, steps: 0, bloom: false, points: 1 },
+  medium: { name: 'medium', scale: 0.75, grass: 0.45, trees: 0.7, fogFar: 185, reflect: 0.35, shadows: 1024, steps: 8, bloom: true, points: 5 },
+  high: { name: 'high', scale: 1, grass: 1, trees: 1, fogFar: 230, reflect: 0.5, shadows: 2048, steps: 14, bloom: true, points: 9 },
 };
 
 export const ORDER = ['low', 'medium', 'high'];

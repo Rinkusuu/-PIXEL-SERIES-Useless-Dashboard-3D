@@ -14,6 +14,7 @@
 :root[data-mode='3d'] .world__canvas--3d {
   cursor: crosshair;
   touch-action: none;
+  image-rendering: auto; /* native resolution: the voxels are the pixels now */
 }
 
 .w3d {

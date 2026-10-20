@@ -6,12 +6,14 @@
    where they would in your garden today. A hemisphere light takes the sky's
    middle band from above and the land colour from below. And three warm point
    lights live in and around the cabin — the hearth (always), the table lamp
-   and the porch lantern (once it gets dark).
+   and the porch lantern (once it gets dark). After dark the lamp posts along
+   the paths light up too; a small pool of PointLights is handed, once a
+   second, to the posts nearest you, so a dozen lamps cost six lights.
    ========================================================================== */
 
 import { Color, DirectionalLight, HemisphereLight, Object3D, PointLight } from 'three';
 import { linear } from './renderer.js';
-import { CABIN } from './layout.js';
+import { CABIN, LAMPS } from './layout.js';
 import { clamp, mixRgb } from '../core/util.js';
 
 export class Lights {
@@ -37,7 +39,9 @@ export class Lights {
     this.lamp.position.set(5, f + 2.3, 76.6);
     this.lantern = new PointLight(0xffcf7a, 0, 9, 1.6);
     this.lantern.position.set(CABIN.door.x + 1.2, f + 2.2, CABIN.z0 - 0.4);
-    this.points = [this.hearth, this.lamp, this.lantern];
+    this.posts = Array.from({ length: 6 }, () => new PointLight(0xffcf7a, 0, 14, 1.6));
+    this.points = [this.hearth, this.lamp, this.lantern, ...this.posts];
+    this._assign = 0;
 
     this._c = new Color();
   }
@@ -101,5 +105,21 @@ export class Lights {
     this.hearth.intensity = (6 + 10 * dark) * flicker;
     this.lamp.intensity = this.pointBudget >= 2 ? 9 * dark : 0;
     this.lantern.intensity = this.pointBudget >= 3 ? 8 * dark : 0;
+
+    // The nearest posts get the pool, re-dealt once a second (they don't move; you do).
+    this._assign -= env.dt;
+    if (this._assign <= 0) {
+      this._assign = 1;
+      const near = [...LAMPS].sort((a, b) => Math.hypot(a.x - focus.x, a.z - focus.z) - Math.hypot(b.x - focus.x, b.z - focus.z));
+      this.posts.forEach((l, i) => near[i] && l.position.set(near[i].x, near[i].y, near[i].z));
+    }
+    const postBudget = Math.max(0, this.pointBudget - 3);
+    this.posts.forEach((l, i) => (l.intensity = i < postBudget ? 12 * dark : 0));
+    this.dark = dark;
+  }
+
+  /** The lights the volumetric pass should glow around: whichever are lit. */
+  airLamps() {
+    return this.points.filter((l) => l.intensity > 0.5);
   }
 }

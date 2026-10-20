@@ -19,13 +19,13 @@ import { mixRgb } from '../core/util.js';
 import { Pipeline, linear } from './renderer.js';
 import { TIERS, initialTier, nextTier } from './quality.js';
 import { Collision } from './collision.js';
-import { heightAt, isWater, WALK_RADIUS } from './layout.js';
+import { blockHeight, isWater, WALK_RADIUS } from './layout.js';
 import { Sky } from './sky3d.js';
 import { Lights } from './lights.js';
 import { buildTerrain, buildSkirt } from './terrain.js';
 import { Water } from './water.js';
 import { House } from './house.js';
-import { buildProps } from './props.js';
+import { buildProps, updateLamps } from './props.js';
 import { Forest } from './forest.js';
 import { Meadow, LAYER_GRASS } from './meadow.js';
 import { Player } from './player.js';
@@ -40,7 +40,7 @@ export function startWorld(canvas) {
 
   // ── The world ───────────────────────────────────────────────────────────
   const col = new Collision({
-    ground: heightAt,
+    ground: blockHeight, // the visible column tops, so feet land on the steps you see
     blocked: (x, z) => isWater(x, z) || Math.hypot(x, z) > WALK_RADIUS,
   });
   const world = new Scene();
@@ -54,7 +54,8 @@ export function startWorld(canvas) {
   water.addTo(world);
   const house = new House(col);
   world.add(house.group);
-  world.add(buildProps(col));
+  const props = buildProps(col);
+  world.add(props.group);
   const forest = new Forest(col);
   forest.addTo(world);
   const meadow = new Meadow();
@@ -74,8 +75,9 @@ export function startWorld(canvas) {
   let tier = null;
   const applyTier = (name) => {
     tier = TIERS[name];
-    pipeline.resize(tier.rows);
+    pipeline.resize(tier.scale);
     pipeline.bloom = tier.bloom;
+    pipeline.steps = tier.steps;
     const recompile = pipeline.setShadows(tier.shadows);
     lights.setShadowSize(tier.shadows);
     lights.setPoints(tier.points);
@@ -86,7 +88,6 @@ export function startWorld(canvas) {
     world.fog.near = tier.fogFar * 0.2;
     if (recompile) world.traverse((o) => o.material && (o.material.needsUpdate = true));
     player.setAspect(pipeline.W / pipeline.H);
-    hud.setPixel(pipeline.scale);
     bus.emit('world:tier', name);
   };
   applyTier(initialTier(store.get('view').quality, coarse));
@@ -95,10 +96,9 @@ export function startWorld(canvas) {
   let probe = store.get('view').quality === 'auto' ? { left: 3, samples: [], rounds: 2 } : null;
 
   addEventListener('resize', () => {
-    pipeline.resize(tier.rows);
+    pipeline.resize(tier.scale);
     water.resize();
     player.setAspect(pipeline.W / pipeline.H);
-    hud.setPixel(pipeline.scale);
   });
 
   bus.on('view', (v) => {
@@ -114,8 +114,7 @@ export function startWorld(canvas) {
 
   const fogColor = new Color();
   const clear = new Color();
-  let lutClock = 0;
-  let lastPalKey = '';
+  let gradeClock = 0;
 
   bus.on('tick', (tick) => {
     const s = env.update(tick);
@@ -139,16 +138,17 @@ export function startWorld(canvas) {
     lights.update(s, sky, player.camera.position);
     water.update(s);
     house.update(s, dt);
+    updateLamps(props, lights.dark);
     meadow.update(s, player.camera.position, tier.fogFar);
+    forest.update(player.camera.position, tier.fogFar);
     linear(mixRgb(s.pal.sky[2], s.pal.fog, 0.5), fogColor);
     world.fog.color.copy(fogColor);
     linear(s.pal.sky[2], clear);
 
-    // The LUT follows the palette once a second, or at once on a new phase.
-    lutClock -= dt;
-    if (lutClock <= 0 || s.pal.key !== lastPalKey) {
-      lutClock = 1;
-      lastPalKey = s.pal.key;
+    // The grade follows the palette four times a second, like the DOM does.
+    gradeClock -= dt;
+    if (gradeClock <= 0) {
+      gradeClock = 0.25;
       pipeline.post.setPalette(s.pal);
     }
 
@@ -159,6 +159,12 @@ export function startWorld(canvas) {
       camera: player.camera,
       clear,
       bloomStrength: 0.85 + s.bass * 0.3 + (s.zen ? (s.breath - 0.5) * 0.25 : 0),
+      key: lights.key,
+      // How thick the air is: a clear noon is nearly clean; fog, weather and losing the network thicken it.
+      air: {
+        density: 0.004 + s.pal.fogAmount * 0.035 + (s.weather === 'fog' ? 0.03 : 0) + s.offline * 0.03,
+        lamps: lights.airLamps(),
+      },
     });
 
     // Tier probe: median of the raw frame times.

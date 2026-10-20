@@ -1,29 +1,30 @@
 /* ============================================================================
    renderer.js — the frame, from sky to screen.
 
-   RESOLUTION. Same policy as the classic scene, for the same reasons: render
-   into a small buffer (240–360 rows, by tier) and let CSS blow it up with
-   `image-rendering: pixelated`. Fill cost is constant on any monitor, and the
-   pixels are the art direction.
+   RESOLUTION. Native: the voxel is the pixel now, so the frame is drawn at the
+   screen's own resolution (device pixel ratio capped at 1.5), scaled down by
+   the quality tier when the machine needs it.
 
    PASSES, in order:
-     background  sky dome, sun, moon, stars, planets, mountains — their own
-                 camera with a deep depth range, so a mountain 900 m away and a
-                 cup 0.5 m away never fight over depth precision
-     world       everything walkable, cleared depth, near 0.05 / far 300
-     emissive    half-res: the world in flat black (occluders), then only the
-                 glowing things (layer 1) in their own colours — the classic
-                 glow buffer, rebuilt for 3D
-     blur        two passes on the emissive buffer
-     post        LUT + dither + bloom, to the canvas (post.js)
+     background  sky dome, bodies, mountains — their own camera with a deep
+                 depth range, so a mountain 900 m away and a cup 0.5 m away
+                 never fight over depth precision
+     world       everything walkable, near 0.05 / far 320, into an HDR target
+                 that keeps its depth for the next pass
+     volumetric  half-res light in the air (volumetric.js), blurred
+     emissive    only the glowing things (layer 1), drawn against the world
+                 pass's own depth buffer — so a tree hides a lamp behind it
+                 for free, without drawing the world a second time — then
+                 blurred down to half resolution
+     post        fog + bloom + ACES + palette grade, to the canvas (post.js)
    ========================================================================== */
 
 import {
-  Color, DataTexture, HalfFloatType, LinearFilter, MeshBasicMaterial, NearestFilter,
-  BasicShadowMap, RGBAFormat, WebGLRenderer, WebGLRenderTarget,
+  Color, DataTexture, DepthTexture, HalfFloatType, LinearFilter, PCFShadowMap,
+  RGBAFormat, WebGLRenderer, WebGLRenderTarget,
 } from 'three';
 import { Post } from './post.js';
-import { clamp } from '../core/util.js';
+import { volumetricMaterial } from './volumetric.js';
 
 export const LAYER_GLOW = 1;
 
@@ -39,41 +40,42 @@ export class Pipeline {
     });
     this.renderer.setPixelRatio(1);
     this.renderer.autoClear = false;
-    this.renderer.shadowMap.type = BasicShadowMap; // hard-edged: a soft shadow in a pixel world is a smudge
+    this.renderer.shadowMap.type = PCFShadowMap;
     this.renderer.shadowMap.autoUpdate = false; // once per frame, not once per pass
 
     this.post = new Post();
-    this.black = new MeshBasicMaterial({ color: 0x000000 });
-    this.noBloom = new DataTexture(new Uint8Array([0, 0, 0, 255]), 1, 1, RGBAFormat);
-    this.noBloom.needsUpdate = true;
+    this.none = new DataTexture(new Uint8Array([0, 0, 0, 255]), 1, 1, RGBAFormat);
+    this.none.needsUpdate = true;
 
-    this.sceneRT = new WebGLRenderTarget(1, 1, { type: HalfFloatType, minFilter: NearestFilter, magFilter: NearestFilter });
-    this.bloomRT = new WebGLRenderTarget(1, 1, { type: HalfFloatType, minFilter: LinearFilter, magFilter: LinearFilter });
-    this.scratchRT = this.bloomRT.clone();
+    const linear = { type: HalfFloatType, minFilter: LinearFilter, magFilter: LinearFilter };
+    const depth = new DepthTexture(1, 1);
+    this.sceneRT = new WebGLRenderTarget(1, 1, { ...linear, depthTexture: depth });
+    this.glowRT = new WebGLRenderTarget(1, 1, { ...linear, depthTexture: depth }); // shares the world's depth
+    this.bloomRT = new WebGLRenderTarget(1, 1, linear);
+    this.fogRT = new WebGLRenderTarget(1, 1, linear);
+    this.scratchRT = new WebGLRenderTarget(1, 1, linear);
+    this.fog = volumetricMaterial();
 
     this.pass = 'idle'; // read by things that must only act in the main pass (the reflector)
     this.bloom = true;
-    this.rows = 360;
+    this.steps = 12; // volumetric steps; 0 turns the pass off
+    this.scale = 1;
   }
 
-  /** Size the buffers for the tier's row count, keeping the upscale an integer. */
-  resize(rows = this.rows) {
-    this.rows = rows;
-    const vw = Math.max(1, innerWidth);
-    const vh = Math.max(1, innerHeight);
-    const scale = clamp(Math.round(vh / rows), 1, 8);
-    const W = Math.ceil(vw / scale);
-    const H = Math.ceil(vh / scale);
-
+  /** Size every buffer for the tier's resolution scale. */
+  resize(scale = this.scale) {
+    this.scale = scale;
+    const dpr = Math.min(devicePixelRatio || 1, 1.5) * scale;
+    const W = Math.max(1, Math.round(innerWidth * dpr));
+    const H = Math.max(1, Math.round(innerHeight * dpr));
     this.W = W;
     this.H = H;
-    this.scale = scale;
     this.renderer.setSize(W, H, false);
     this.sceneRT.setSize(W, H);
-    const bw = Math.max(1, W >> 1);
-    const bh = Math.max(1, H >> 1);
-    this.bloomRT.setSize(bw, bh);
-    this.scratchRT.setSize(bw, bh);
+    this.glowRT.setSize(W, H);
+    const hw = Math.max(1, W >> 1);
+    const hh = Math.max(1, H >> 1);
+    for (const rt of [this.bloomRT, this.fogRT, this.scratchRT]) rt.setSize(hw, hh);
   }
 
   setShadows(size) {
@@ -86,16 +88,37 @@ export class Pipeline {
     return false;
   }
 
+  /** The volumetric pass's view of the world this frame. */
+  _fogUniforms(camera, key, air) {
+    const u = this.fog.uniforms;
+    u.tDepth.value = this.sceneRT.depthTexture;
+    u.tShadow.value = key.shadow.map?.depthTexture ?? null;
+    u.uInvProj.value.copy(camera.projectionMatrixInverse);
+    u.uCamWorld.value.copy(camera.matrixWorld);
+    u.uShadowMatrix.value.copy(key.shadow.matrix);
+    u.uCamPos.value.setFromMatrixPosition(camera.matrixWorld);
+    u.uKeyDir.value.copy(key.position).sub(key.target.position).normalize();
+    u.uKeyColor.value.copy(key.color).multiplyScalar(key.intensity);
+    u.uDensity.value = air.density;
+    u.uSteps.value = this.steps;
+    u.uLamps.value = air.lamps.length;
+    air.lamps.forEach((l, i) => {
+      u.uLampPos.value[i].copy(l.position);
+      u.uLampColor.value[i].copy(l.color).multiplyScalar(l.intensity);
+    });
+  }
+
   /**
    * @param {object} f
    * @param {Scene}  f.bg, f.world
    * @param {Camera} f.bgCamera, f.camera
    * @param {Color}  f.clear       what is behind the sky (only seen if the dome fails)
    * @param {number} f.bloomStrength
+   * @param {DirectionalLight} f.key   the shadow-casting light, for the light shafts
+   * @param {object} f.air         { density, lamps: PointLight[] }
    */
-  render({ bg, world, bgCamera, camera, clear, bloomStrength }) {
+  render({ bg, world, bgCamera, camera, clear, bloomStrength, key, air }) {
     const r = this.renderer;
-
     r.shadowMap.needsUpdate = r.shadowMap.enabled;
 
     // ── background + world ────────────────────────────────────────────────
@@ -108,41 +131,45 @@ export class Pipeline {
     r.render(world, camera);
     r.shadowMap.needsUpdate = false;
 
+    // ── light in the air ──────────────────────────────────────────────────
+    let fogTex = this.none;
+    if (this.steps > 0 && key.shadow.map && air.density > 0.0005) {
+      this.pass = 'fog';
+      this._fogUniforms(camera, key, air);
+      this.post.draw(r, this.fog, this.fogRT);
+      this.post.blurInto(r, this.fogRT, this.scratchRT, 1.5);
+      fogTex = this.fogRT.texture;
+    }
+
     // ── emissive buffer ───────────────────────────────────────────────────
-    let bloomTex = this.noBloom;
+    let bloomTex = this.none;
     if (this.bloom) {
       this.pass = 'glow';
       const bgMask = bgCamera.layers.mask;
       const mask = camera.layers.mask;
 
-      r.setRenderTarget(this.bloomRT);
+      r.setRenderTarget(this.glowRT);
       r.setClearColor(0x000000, 1);
-      r.clear(true, true, false);
+      r.clear(true, false, false); // colour only: the depth is the world's, and it stays
 
+      // The sky's glowing things test against the world's depth too. Different
+      // projections, but a star 1.4 km away sits at the very back of either,
+      // so anything of the world in front of it hides it.
       bgCamera.layers.set(LAYER_GLOW);
       r.render(bg, bgCamera);
-      r.clearDepth();
-
-      // Occluders: everything that does not glow, drawn black, so a lit window
-      // behind a tree does not bloom through the tree.
-      camera.layers.set(0);
-      world.overrideMaterial = this.black;
-      r.render(world, camera);
-      world.overrideMaterial = null;
-
       camera.layers.set(LAYER_GLOW);
       r.render(world, camera);
 
       bgCamera.layers.mask = bgMask;
       camera.layers.mask = mask;
 
-      this.post.blurBloom(r, this.bloomRT, this.scratchRT);
+      this.post.blurInto(r, this.glowRT, this.scratchRT, 2, this.bloomRT);
       bloomTex = this.bloomRT.texture;
     }
 
     // ── post ──────────────────────────────────────────────────────────────
     this.pass = 'post';
-    this.post.composite(r, this.sceneRT, bloomTex, bloomStrength);
+    this.post.composite(r, this.sceneRT, bloomTex, fogTex, bloomStrength, 1);
     this.pass = 'idle';
   }
 }

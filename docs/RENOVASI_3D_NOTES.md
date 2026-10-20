@@ -325,3 +325,53 @@ Honest caveats:
 - **Known cost:** the cabin is about 200 separate meshes × 4 passes (shadow, main, glow occluders, reflection), hence 1390 calls. P6 should merge the static meshes by material.
 
 **Bundle:** shell **62.3 KB gz** (+0.9 KB since P1: world settings, starField, moon). **3D world chunk 166.0 KB gz**, about 140 KB of that three.js. Lazy, so Classic does not pay for it. CSS 8.8 KB gz. Fonts unchanged.
+
+---
+
+## P2.6–P2.7 — Restyle: voxel art + modern lighting (after *Shadows of Doubt*)
+
+**Why:** after trying P2 the user asked for the look of *Shadows of Doubt*: **voxel art** (the developer calls it voxels, built in MagicaVoxel) under **modern lighting** (Unity HDRP: volumetrics, many lamps, AO, grading), at native resolution. Decisions:
+- voxel + modern lighting, native resolution
+- the LUT + Bayer dither replaced by **smooth colour grading**
+- done **before P3**
+
+**This overrides spec §2 for the 3D world:** no low internal resolution and no LUT quantisation. Classic Mode is untouched. "Zero asset files" still holds: every voxel model is generated in code.
+
+### P2.6 — Voxel geometry
+- `world/voxel.js`: a VoxelGrid (Uint8 palette indices, a shared palette with 3 shades per colour) with `fillBox` (world corners, carving with 0) and `fill` (a predicate, for slopes, gables, round things). Paints: `grain`, `courses` (log walls, shingles), `planks`, `blocks` (stone). **Greedy mesher** with **per-vertex voxel AO**, which merges only when colour and all four corner AO values agree. 6 tests.
+- **Cabin**: one 10 cm grid, one mesh (it used to be about 200 meshes). The roof and gables are voxel terraces, the ladder rails are slanted voxel runs, and the door is its own grid on the hinge. Collision is unchanged.
+- **Terrain**: 0.5 m columns, heights in 0.25 m steps (`layout.blockHeight`, 2 tests). Tops merge in runs along x, and walls appear only where neighbours differ: 277k triangles, built in about 0.6 s. Collision, trees, grass and props all stand on `blockHeight`, so feet land on the visible steps.
+- **Models** (`world/models.js`): pine and round tree (25 cm voxels near, 50 cm LOD far), boulders, 4 cm grass tufts, flowers, lamp posts. Trees and grass turn in quarter turns only, so they stay aligned with the voxel world.
+- **Forest**: 32 m tiles × {near, far} LOD per species, so camera, shadow and reflection culling work per tile. Density prefix and collider switching are unchanged.
+
+### P2.7 — Lighting and frame
+- **Native resolution**: DPR capped at 1.5 × tier scale (high 1, medium 0.75, low 0.5). `image-rendering: auto` on the 3D canvas.
+- **Grade** (`post.js`): ACES, then lift toward the palette's zenith colour and gain toward its glow, plus exposure raised at night and a vignette, recomputed at 4 Hz.
+- **Volumetric light** (`world/volumetric.js`): half res, 8 steps (medium) or 14 (high). Each step samples the key light's PCF shadow map (`sampler2DShadow`), applies Henyey–Greenstein forward scattering, and adds analytic halos around every lit point light. Air density = 0.004 + palette fog + fog weather + offline, so being offline thickens the air too. Blurred, then added before tone mapping.
+- **Lamp posts**: 10, placed every 16 m along the paths (`layout.LAMPS`). Six pooled PointLights are re-dealt once a second to the nearest posts and lit after dark. The glass sits on the glow layer.
+- **Bloom without the occluder pass**: the glow target **shares the world's depth texture**, so glowing things are hidden by whatever stands in front of them without drawing the world again in black.
+
+### Measurements (headless Chromium, ANGLE/Metal, this Mac)
+
+| View | tier / buffer | frame median / p95 | calls | triangles (all passes) |
+|---|---|---|---|---|
+| 1366 cabin | high 1366×768 | 16.7 / 16.7 ms | 624 | 8.6 M |
+| 1366 meadow noon | high | 16.7 / 16.8 ms | 466 | 7.5 M |
+| 1366 lake dusk | high | 16.7 / 16.8 ms | 268 | 3.7 M |
+| 1366 hill night | high | 16.7 / 16.8 ms | 554 | 8.8 M |
+| 1366 yard night | high | 16.7 / 16.7 ms | 304 | 5.6 M |
+| 390 cabin | medium 293×633 | 16.7 / 16.7 ms | 378 | 4.6 M |
+| 390 meadow noon | medium | 16.7 / 16.8 ms | 236 | 2.9 M |
+
+How it got there:
+- The first voxel pass drew **46 M triangles**: a 2,000-triangle tree × 2,192 trees × every pass, and one bounding sphere for the whole forest, so nothing was ever culled.
+- Forest tiles + LOD brought that to 14 M.
+- Dropping the occluder pass brought it to 11.6 M.
+- Single-colour grass stalks (a gradient per stalk broke the greedy merge: 112 → 40 triangles per tuft) brought it to 8.6 M.
+- Still vsync-bound, so headroom is unknown. Still not tested on a real phone.
+
+**Bundle:** shell 62.3 KB gz (unchanged); world chunk **156.7 KB gz** (−9 KB: the textures and LUT code are gone).
+
+Walk + touch tests rerun on the stepped terrain: all pass (door, out to the yard, closed door stops at 73.82, ladder to the loft, shore, tower deck y 11.5, tap-to-walk, thumbstick).
+
+Captures: `p2v-{1366,390}-*` (plus `p2v-1366-yard-night`) next to the low-poly `p2-*`.
