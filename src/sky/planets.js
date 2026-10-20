@@ -188,3 +188,12 @@ export function sunPosition(date, lat, lon) {
   const f = frame(date, lat, lon);
   return look(-f.earth.x, -f.earth.y, -f.earth.z, f.obl, f.lst, f.latR);
 }
+
+/**
+ * Any geocentric ecliptic direction (x, y, z — length doesn't matter) to where
+ * it stands in this observer's sky. The moon uses it; so could anything else.
+ */
+export function eclipticToHorizontal(x, y, z, date, lat, lon) {
+  const f = frame(date, lat, lon);
+  return look(x, y, z, f.obl, f.lst, f.latR);
+}

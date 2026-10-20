@@ -12,15 +12,8 @@ import { Layer } from '../Layer.js';
 import { pxCircle, glowDot } from '../../ui/pixel.js';
 import { horizon } from '../horizon.js';
 import { maxSolarAltitude } from '../../sky/season.js';
+import { moonPhase } from '../../sky/moon.js';
 import { rgbCss, clamp, lerp, TAU, remap } from '../../core/util.js';
-
-/** Days since a known new moon (2000-01-06). Good to a few hours for centuries. */
-const SYNODIC = 29.530588853;
-function moonPhase(date = new Date()) {
-  const known = Date.UTC(2000, 0, 6, 18, 14);
-  const days = (date.getTime() - known) / 86400000;
-  return ((days % SYNODIC) + SYNODIC) % SYNODIC / SYNODIC; // 0 = new, 0.5 = full
-}
 
 export class CelestialLayer extends Layer {
   constructor() {

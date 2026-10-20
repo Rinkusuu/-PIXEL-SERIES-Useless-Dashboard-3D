@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { sunPosition, planetPositions } from './planets.js';
 import { declination, getSeason, maxSolarAltitude } from './season.js';
 import { getPalette, PHASE_KEYS } from './palette.js';
+import { moonPosition, moonPhase } from './moon.js';
 
 const RAD = Math.PI / 180;
 
@@ -99,5 +100,31 @@ describe('palette', () => {
 
   it('exposes every phase key', () => {
     expect(PHASE_KEYS.length).toBe(9);
+  });
+});
+
+describe('moon', () => {
+  const sunMoon = (date) => separation(moonPosition(date, 0, 0), sunPosition(date, 0, 0));
+
+  it('stands opposite the sun at full moon (3 Jan 2026, 10:03 UTC)', () => {
+    const full = new Date(Date.UTC(2026, 0, 3, 10, 3));
+    expect(sunMoon(full)).toBeGreaterThan(174);
+    expect(moonPhase(full)).toBeCloseTo(0.5, 1);
+  });
+
+  it('sits beside the sun at new moon (18 Jan 2026, 19:52 UTC)', () => {
+    const fresh = new Date(Date.UTC(2026, 0, 18, 19, 52));
+    expect(sunMoon(fresh)).toBeLessThan(6); // its orbit is tilted 5°
+    expect(Math.min(moonPhase(fresh), 1 - moonPhase(fresh))).toBeLessThan(0.03);
+  });
+
+  it('rises in the east and sets in the west', () => {
+    // A full moon is up all night: low in the east at dusk, low in the west at dawn (Jakarta).
+    const dusk = moonPosition(new Date(Date.UTC(2026, 0, 3, 11, 0)), -6.2, 106.85);
+    const dawn = moonPosition(new Date(Date.UTC(2026, 0, 3, 22, 30)), -6.2, 106.85);
+    expect(dusk.az).toBeGreaterThan(45);
+    expect(dusk.az).toBeLessThan(135);
+    expect(dawn.az).toBeGreaterThan(225);
+    expect(dawn.az).toBeLessThan(315);
   });
 });
