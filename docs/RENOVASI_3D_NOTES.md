@@ -263,3 +263,65 @@ Housekeeping: `@playwright/test` added as a devDependency (the spec needs it for
 - **Bug fixed along the way:** `Scene._bloom` was never initialised, so `Math.abs(bloom - undefined)` was always `NaN` and the bloom never followed the music's bass, though the README says it does. It now starts at 0.85 (the CSS resting opacity), so the resting look is unchanged.
 - Captures: `p1-classic-*` matches `before-*` apart from one extra topbar button (Walk). `p1-3d-*` shows the palette-coloured empty world with the topbar.
 - Bundle: shell 165.3 KB → **60.9 KB gz** (+1.5 KB: env, migrate, mode). World chunk 0.27 KB gz.
+
+---
+
+## P2 — A world you can walk through
+
+### Decisions taken in the P2 question round (2026-10-20)
+Lighting: **dynamic shadows plus point lights**. Lake: **planar reflection**. Dither: **Bayer 4×4, gentle**. Walking speed: **2.2 m/s**. Textures: **16×16 pixel textures from ASCII**. Grass: **instanced blades with wind in the shader**. HUD: centre dot, the topbar, first-visit hints, fps + tier. Night sky: **a dome with 1 px stars**.
+
+### P2.1 — Renderer, post pass, tiers (done)
+- `world/renderer.js`: the frame renders at 240/300/360 rows by tier with an integer CSS upscale, same policy as Classic. Passes: **background** (sky dome, bodies, mountains; own camera, near 1 / far 4000), **world** (near 0.05 / far 320), **emissive** at half res (occluders in black, then layer 1 only), a two-pass **blur**, then **post**.
+- `world/post.js`: sRGB → Bayer 4×4 offset → **16³ 3D LUT** built from a palette **derived from the current keyframe**: 20 material swatches × 5 light levels via `pal.lit`, plus the sky stops, fog, glow, accent, sun and the warm lights. It is rebuilt once a second or on a phase change, and costs one texture fetch per pixel. The bloom is screen-blended after the LUT, so it stays smooth like the classic CSS blur.
+- `world/quality.js`: tiers set resolution, grass and tree density, fog distance, reflection resolution, shadow map size, bloom and point-light count. Auto tier starts high on desktop and medium on coarse pointers, takes the median frame time over 3 s, steps down if slow, and measures once more after a step. It never steps up.
+
+### P2.2 — The world (done)
+- `world/layout.js` is the world's horizon.js: places, paths, stream, `heightAt`, `isWater`, `forestDensity`, `grassDensity`. Pure, with 9 tests.
+- **Terrain**: a 2 m flat-shaded grid with face colours (meadow, path, sand, mud, forest floor) and the ground texture. A **skirt** ring past the map edge fades into the fog: from the tower you used to see past the edge of the world.
+- **Cabin**: one room, gable roof, **loft with a ladder**, hearth + chimney, table/chairs/lamp/rug, shelf, kitchen counter, bed, porch, bench, four lit windows, and a door that opens with E. The table was moved after the walk test found the chair blocking the doorway.
+- **Lake**: Reflector (three addon) with a custom shader. Ripples are measured in reflection texels, and wherever the reflection is empty (the sky lives in the background pass) it shows the palette's sky. Grass is excluded from the reflection camera. Low tier uses flat water. The **stream** is a ribbon down to the lake, crossed by a **bridge** on the path.
+- **Forest**: two instanced species, about 2200 trees from seeded rejection sampling, shuffled so lower tiers thin the forest evenly (and switch those trunks' colliders off). The leaf tree and the island pine always stay. Past the walkable disc there is a dense wall of trees.
+- **Meadow**: up to 70k four-blade tufts in 25 m tiles (frustum- and distance-culled), plus flowers. Wind is a travelling gust injected into Lambert, so lighting, fog and shadows still work. Reduced motion stills it, as in Classic.
+- **Props**: dock, bridge, **fire lookout** (deck 9 m up, 15 m stair), mailbox, telescope, flat rock, skipping stones, boulders.
+- **Island** in the lake: visible, not reachable.
+- `world/collision.js`: a cylinder player; segments and circles with vertical ranges; walkable surfaces (flat, sloped, or rotated as with the bridge); step 0.45 m; drifting down instead of falling. 12 tests.
+
+### P2.3 — The player (done)
+- 2.2 m/s with no running or jumping. Eye height 1.6 m. **Waking**: fade from black while lying in the loft bed, then sitting up and standing (2.2 s). Reduced motion skips straight to standing.
+- Desktop: WASD/arrows, **pointer lock on click** (Esc releases), drag-to-look when pointer lock is off, E uses, centre dot + tooltip.
+- Touch: thumbstick under the left thumb, right thumb looks, **tap the ground to walk there** (ray march over the height field), and a contextual Use button.
+- Comfort (`ui/world-settings.js`, topbar ⚙ World and ⌘K "World settings"): FOV 55–100°, head bob (off by default, never under reduced motion), snap turn (30°), pointer lock, quality (auto/low/medium/high), back to Classic.
+- Walk test in headless Chromium: E opens the door; walking out reaches the yard (z 69.3); a closed door stops you at 73.82 (wall + body radius); you can climb the ladder to the loft (y 3.3); you stop at the lake shore and the edge of the water; you can climb the tower to its deck (y 11.6), where the railing stops you. Touch: a tap walks about 4 m toward the tapped point, and the thumbstick walks 4.7 m in 2 s.
+
+### P2.4 — A real sky, the palette as light (done)
+- `sky/moon.js` (new): Schlyter lunar theory with the 10 largest perturbations, under a degree of error. Tested: full moon opposite the sun, new moon beside it, rising in the east and setting in the west.
+- `sky/stars.js` `starField()` consumes the seed in **exactly** StarsLayer's order, so star #57 is the same star in both renderers (tested). Altitude 6–90°, crowded toward the zenith.
+- `world/sky3d.js`: the dome uses the palette's three sky stops plus a sun glow. The sun and moon (with phase and earthshine) sit at their **real alt/az**, and the moon pales by day. Stars twinkle by opacity only; **planets do not twinkle** (no time term in their shader). Classic's three ridges wrap around the world as hazy rings.
+- `world/lights.js`: one key light that casts shadows — the sun, or the moon after sunset, scaled by phase — at the body's real direction. A hemisphere light uses half-desaturated sky from above and warm earth from below. With full-strength sky and green land bounce every indoor wall turned khaki. Hearth (always on, flickers), table lamp and porch lantern (after dark).
+- The scene fog and the dome's below-horizon colour both use the palette's fog colour, so the edge of the land dissolves.
+- **Bug found:** `core/env.js` assumed a default longitude of 0°. Before the weather arrived with a real location, a 22:30 Jakarta clock showed a noon sun over Greenwich in a night palette. The default longitude now comes from the timezone (15° per hour), which also helps Classic's planets.
+
+### P2.5 — Captures and performance (done)
+`docs/screens/renovasi-3d/p2-{1366,390}-{cabin,door-open,meadow-noon,lake-dusk,hill-night}.png` via `node scripts/capture-world.mjs p2` (`?debug` exposes `window.__world` for teleporting; it is off without the flag).
+
+Headless Chromium on this Mac (ANGLE/Metal), 120 rAF frames per view:
+
+| View | tier | buffer | median / p95 frame | draw calls | triangles (all passes) |
+|---|---|---|---|---|---|
+| 1366 cabin | high | 683×384 | 16.7 / 16.8 ms | 1390 | 2.61 M |
+| 1366 door open | high | 683×384 | 16.7 / 16.7 ms | 1132 | 2.60 M |
+| 1366 meadow noon | high | 683×384 | 16.7 / 16.7 ms | 814 | 2.21 M |
+| 1366 lake dusk | high | 683×384 | 16.7 / 16.7 ms | 278 | 1.30 M |
+| 1366 hill night | high | 683×384 | 16.7 / 16.8 ms | 782 | 2.32 M |
+| 390 cabin | medium | 130×282 | 16.7 / 16.8 ms | 944 | 1.36 M |
+| 390 meadow noon | medium | 130×282 | 16.7 / 16.8 ms | 380 | 0.95 M |
+| 390 lake dusk | medium | 130×282 | 16.7 / 16.8 ms | 264 | 0.95 M |
+
+Honest caveats:
+- Every view is pinned at the 60 Hz vsync, so these numbers show the target is met on this machine but say **nothing about headroom**.
+- The 390 runs are desktop GPU emulating a phone, not a real mid-range phone.
+- The A/B method from §7 (two checkouts, alternating slots, ≥3 runs) belongs to P6, where there is something to compare.
+- **Known cost:** the cabin is about 200 separate meshes × 4 passes (shadow, main, glow occluders, reflection), hence 1390 calls. P6 should merge the static meshes by material.
+
+**Bundle:** shell **62.3 KB gz** (+0.9 KB since P1: world settings, starField, moon). **3D world chunk 166.0 KB gz**, about 140 KB of that three.js. Lazy, so Classic does not pay for it. CSS 8.8 KB gz. Fonts unchanged.
