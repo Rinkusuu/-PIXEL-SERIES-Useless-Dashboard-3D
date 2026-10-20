@@ -62,4 +62,5 @@ export default defineConfig({
     assetsInlineLimit: 0, // fonts must stay as files so the SW can precache them
   },
   plugins: [serviceWorker()],
+  test: { include: ['src/**/*.test.js'] }, // e2e/ belongs to Playwright, not Vitest
 });

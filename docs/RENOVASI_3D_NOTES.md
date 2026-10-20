@@ -235,3 +235,21 @@ Notes and commits are in English from here on. The P0 sections above stay in Ind
 **Baseline bundle (vite build, pre-renovation):** JS 161.6 KB → **59.4 KB gz** · CSS 41.6 KB → **8.2 KB gz** · fonts 17.3 KB (6 woff2) · index.html 1.6 KB gz.
 
 Housekeeping: `@playwright/test` added as a devDependency (the spec needs it for e2e in P1/P3; Chromium headless shell downloaded to the user cache).
+
+---
+
+## P1 — Foundations
+
+### P1.1 — sky/ and classic/ (done)
+- `sky/`: `palette` (pure now), `season`, `planets`, plus the new `stars` (`STAR_COUNT`, part of the save format).
+- `classic/`: `Scene`, `Layer`, `horizon`, `layers/` (15 layers, unchanged).
+- `ui/pixel.js` (shared: classic layers, widgets, and later the 3D textures) and `ui/palette-dom.js` (`applyPaletteToDOM`, used by both renderers).
+- `docs/screens/renovasi-3d/p1-moved-*` matches `before-*` apart from live data (clock, ISS, quote). Bundle unchanged at 59.41 KB gz.
+
+### P1.2 — Vitest, sky tests, store migration (done)
+- `vitest@3.2.7` (works with vite 5). `npm test` runs 24 tests in about 0.3 s.
+- `src/sky/sky.test.js` turns the README validation table into tests. Computed values: solstice dec **23.43°**, London **61.9° / az 179.9°**, Sydney **32.7° / az 0.1°**, Venus max elongation **47.0°**, Jupiter yearly march **35.9°**.
+- `src/core/migrate.js` + `src/core/migrate.test.js`: the store reads `uad.v2`, falls back to `uad.v1`, and writes `uad.v2` only.
+- One change from the P0.2 plan: **catches are a log, not a set**. Two carp stay two carp, so they are not deduplicated.
+- `view.pointerLock` defaults to `true`, per the review decision.
+- The store's DEFAULTS aliasing (P0.1 finding 6) is fixed with `structuredClone`, and a test covers it.

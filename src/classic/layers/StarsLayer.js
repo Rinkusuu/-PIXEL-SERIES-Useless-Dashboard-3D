@@ -10,13 +10,13 @@ import { Layer } from '../Layer.js';
 import { dot, glowDot, pxText, textWidth } from '../../ui/pixel.js';
 import { horizon } from '../horizon.js';
 import { planetPositions } from '../../sky/planets.js';
+import { STAR_COUNT } from '../../sky/stars.js';
 import { bus } from '../../core/bus.js';
 import { store } from '../../core/store.js';
 import { play } from '../../core/play.js';
 import { unlock } from '../../core/achievements.js';
 import { rgbCss, rng, clamp, TAU, lerp } from '../../core/util.js';
 
-const STAR_COUNT = 190;
 
 const RAD = Math.PI / 180;
 

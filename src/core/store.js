@@ -2,9 +2,17 @@
    store.js — tiny persistent state. localStorage-backed, debounced, and
    defensive: a corrupt or unavailable store (Safari private mode throws on
    write) must degrade to in-memory, never to a white screen.
+
+   v2 is a MIGRATION, not a replacement: an old `uad.v1` is read once, cleaned
+   by core/migrate.js, and written forward as `uad.v2`. The v1 key is never
+   deleted, so a cached older build can still open, and nothing is lost if we
+   ever need to roll back.
    ========================================================================== */
 
-const KEY = 'uad.v1';
+import { migrate } from './migrate.js';
+
+const KEY = 'uad.v2';
+const LEGACY_KEY = 'uad.v1';
 
 const DEFAULTS = {
   sound: false, // opt-in, always. Autoplaying audio is a hostile act.
@@ -44,16 +52,22 @@ const DEFAULTS = {
   leaves: 0, // leaves caught
   stars: [], // constellations you drew: [{ name, pts: [starIndex…], at }]
   wishes: 0, // shooting stars caught mid-fall. They granted nothing.
+
+  // ── v2: the walkable world ────────────────────────────────────────────────
+  v: 2,
+  mode: 'auto', // 'auto' (3D when WebGL2 exists) | 'classic' | '3d'
+  player: null, // { x, y, z, yaw, pitch } — null wakes you in the loft bed
+  view: { fov: 70, headBob: false, snapTurn: false, pointerLock: true, quality: 'auto' },
 };
 
 function read() {
   try {
-    const raw = localStorage.getItem(KEY);
-    if (!raw) return { ...DEFAULTS };
-    // Spread DEFAULTS first so a store written by an older version still boots.
-    return { ...DEFAULTS, ...JSON.parse(raw) };
+    const raw = localStorage.getItem(KEY) ?? localStorage.getItem(LEGACY_KEY);
+    return migrate(raw ? JSON.parse(raw) : null, DEFAULTS);
   } catch {
-    return { ...DEFAULTS };
+    // Corrupt JSON or no storage at all. A clone, never DEFAULTS itself: its
+    // arrays and `mix` must not be shared with live state.
+    return structuredClone(DEFAULTS);
   }
 }
 
@@ -110,7 +124,7 @@ export const store = {
   },
 
   reset() {
-    Object.assign(state, DEFAULTS);
+    Object.assign(state, structuredClone(DEFAULTS));
     flush();
   },
 };
