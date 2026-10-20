@@ -202,3 +202,28 @@ Belum dijalankan: spec meminta izin dulu sebelum proses berat (Chrome headless, 
 
 1. Mode foto/postcard dan teks di dunia memakai font 3×5 dari kode; overlay DOM tetap memakai woff2 yang sudah ada. OK?
 2. Repo baru hanya lokal (spec: "jangan push"). Buat repo GitHub privat `-PIXEL-SERIES-Useless-Dashboard-3D` nanti?
+
+---
+
+## Decisions (2026-10-20, from the user)
+
+Notes and commits are in English from here on. The P0 sections above stay in Indonesian.
+
+| Topic | Decision |
+|---|---|
+| Repo | Public: github.com/Rinkusuu/-PIXEL-SERIES-Useless-Dashboard-3D. **Push after every commit** (this overrides "jangan push" in the spec). No attribution trailers. |
+| Stops | As the spec says: end of P0 and P2. P1 runs straight into P2. |
+| Captures | "Before" now: 1920/1366/430/390 × Noon/Midnight. |
+| Internal resolution | **360 rows** (Classic stays at 270). |
+| Style | Low-poly, flat shading, small pixel textures. |
+| World size | **250 × 250 m** (the P0.3 map scales up). Extra areas: **a stream from the hill into the lake with a wooden bridge**, **a small island in the lake** (visible, not reachable), **ruins / a fire lookout tower in the forest** (a second viewpoint). |
+| Cabin | One room plus a **sleeping loft with a ladder**, so the player needs a climbable volume. |
+| First visit | Fade in from black, waking in the loft bed and facing the window. |
+| Look | **Pointer lock on click** (Esc releases it). Dragging to look stays as the fallback and on touch. |
+| Picking | 1 px centre dot. The object under it gets an outline and a tooltip, E to use. |
+| Panel overlay | Centred glass panel. The world stays live behind it, slightly dimmed and blurred. |
+| Default mode | Auto 3D when WebGL2 is available, otherwise Classic. Switchable in settings. |
+| Time | The real clock, as today (overrides still work through ⌘K). |
+| UI language | English. |
+| Test device | Mac, Chrome. |
+| Bundle budget | No hard cap, but every number gets reported honestly. |
