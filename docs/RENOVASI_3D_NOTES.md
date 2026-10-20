@@ -131,3 +131,74 @@ read():
 **Tes (Vitest, P1):** v1 kosong → DEFAULTS; v1 penuh → tidak ada kunci/nilai yang hilang; idempoten (`migrate(migrate(x)) == migrate(x)`); JSON rusak → DEFAULTS tanpa throw; `uad.v1` tetap ada setelah flush.
 
 ---
+
+## P0.3 — Peta dunia
+
+Skala: 1 kolom ≈ 2 m, 1 baris ≈ 10 m. Peta 150 × 150 m, utara ke atas. Pemain bangun di pondok, menghadap jendela ke danau.
+
+```
+ N  0    10   20   30   40   50   60   70   80   90  100  110  120  130  140  150 m
+  0 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^  gunung (background pass)
+ 10 ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~TTTTTTTTTTTTTTTTTTTTTTTTTTTTT^^^^
+ 20 ^~~~~~~~~~~~~~~~~ DANAU ~~~~~~~~~~~~~~~~~~~~~~TTTTT  TEPI HUTAN  TTTTTTTTTT^^^^
+ 30 ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~TTTTT   [⑭ pohon daun]  TTTTTT^^^^
+ 40 ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~TTTT                 . TTTTT^^^^
+ 50 ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~TT  ,,,,,,,,,,,,,,.  TTTTT ^^^^
+ 60 ^~~~~~~~~~~~~~~~~~~~~ ⑬batu ~~~~~~~~~~~~~~~~~~~   ,,, PADANG ,,,,.   /\   ^^^^
+ 70 ^~~~~~~~~~~~~~~~~~~~~~ ..::  ~~~~~~~~~~~~~~~~~~  ,,,,,,,,,,,,,,,,.  /  \  ^^^^
+ 80 ^~~~~~~~~~~~~~~~~~~~~~~~~ ║ ~~~~~~~~~~~~~~~~~~ ,,,,,,,,,,,,,,,,,, /BUKIT\ ^^^^
+ 90 ^~~~~~~~~~~~~~~~~~~~~~~~~ ║ DERMAGA ⑫joran ~~~  ,,,,, ⑮slime ,,,, / ⑩ ⑪ \  ^^^
+100 ^~~~~~~~~~~~~~~~~~~~~~~~~ ║ ~~~~~~~~~~~~~~~~~~~ ,,,,,,,,,,,,,,,,,. ‾‾‾‾‾‾‾  ^^^
+110 ^~~~~~~~~~~~~~~~~~~~~~~~~ ╚═════.............................../          ^^^^
+120 ^ ~~~~~~~~~~~~~~~~~~~~~~ ......:   +-----------+ beranda ⑤⑥            TT ^^^^
+130 ^     ,,,,,,,,,,,,,,,,, ......:    |  PONDOK   |= ③bangku               TT ^^^^
+140 ^^  TT ,,,,,,, HALAMAN ④kotak surat|  (int.)   |                       TT^^^^
+150 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^+-----------+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^  kabut + gunung
+         ~ air   T pohon   , rumput/bunga   . jalan setapak   ║═ dermaga   ^ batas (gunung/kabut)
+```
+
+- **Pondok** (≈12 × 9 m) di selatan-tengah, pintu menghadap utara ke beranda; jendela barat menghadap danau (jendela menyala yang sama dengan versi 2D).
+- **Jalur setapak:** beranda → kotak surat (barat) → dermaga (barat laut); beranda → padang → bukit (timur laut, naik ±8 m).
+- **Danau** menempati barat-utara (±40% peta), dermaga menjorok 25 m. Air = batas alami barat.
+- **Hutan** menutup utara-timur; **bukit** di timur, titik tertinggi, langit terbuka 360°.
+- **Batas:** collider melingkar lunak di r ≈ 70 m dari pusat + gunung/kabut. Pemain berhenti, tidak terpental.
+
+### 15 benda dan tempatnya
+
+| # | Panel | Benda | Tempat | Koordinat (x, z m) |
+|---|---|---|---|---|
+| ① | Local Time | jam tangan (+ jam dinding) | pergelangan; dinding pondok | pemain; (75, 138) |
+| ② | Weather | barometer + termometer | samping pintu, beranda | (82, 122) |
+| ③ | Mood | cermin (+ cincin di jam tangan) | dinding pondok | (70, 140) |
+| ④ | Useless Fact | koran di kotak surat | halaman | (55, 140) |
+| ⑤ | Daily Fortune | toples kue keberuntungan | meja pondok | (74, 134) |
+| ⑥ | Quote | mading (papan gabus) | dinding pondok | (79, 140) |
+| ⑦ | Ambient Loop FM | radio | meja pondok | (76, 134) |
+| ⑧ | Ambience | kenop di radio + sumber posisional | radio; perapian, padang, atap | (76, 134) |
+| ⑨ | Coffee | ceret dan cangkir | dapur pondok | (84, 136) |
+| ⑩ | Overhead (ISS) | teleskop | puncak bukit | (128, 85) |
+| ⑪ | Play — Constellations | batu datar untuk berbaring | puncak bukit | (132, 88) |
+| ⑫ | Play — Fish | joran bersandar di tiang | ujung dermaga | (50, 88) |
+| ⑬ | Play — Skip stones | tumpukan batu pipih | tepi danau | (45, 62) |
+| ⑭ | Play — Catch leaves | pohon besar | tepi hutan | (110, 30) |
+| ⑮ | Pet | slime (bergerak) | padang, mengikuti pemain | dinamis |
+| — | Idle Earnings | toples koin | rak pondok | (71, 136) |
+| — | Pockets | saku (dari jam tangan) | pemain | — |
+| — | Tiny Achievements | piagam + rak piala | dinding pondok | (86, 140) |
+
+(15 panel → 18 benda: Play dipecah ke 4 tempat fisiknya; Ambience punya kenop + sumber suara.)
+
+Bangku Zen: beranda ③ dan batu datar ⑪. Mode foto dari menu jam tangan.
+
+---
+
+## P0.4 — Capture "before"
+
+Belum dijalankan: spec meminta izin dulu sebelum proses berat (Chrome headless, laptop bising). Rencana: `vite preview` + Playwright, viewport 1920×1080, 1366×768, 430×932, 390×844, jam dikunci ke Noon dan Midnight agar pembanding P1 deterministik, simpan ke `docs/screens/renovasi-3d/before-<w>-<noon|midnight>.png`.
+
+---
+
+## Keputusan terbuka (untuk user)
+
+1. Mode foto/postcard dan teks di dunia memakai font 3×5 dari kode; overlay DOM tetap memakai woff2 yang sudah ada. OK?
+2. Repo baru hanya lokal (spec: "jangan push"). Buat repo GitHub privat `-PIXEL-SERIES-Useless-Dashboard-3D` nanti?
