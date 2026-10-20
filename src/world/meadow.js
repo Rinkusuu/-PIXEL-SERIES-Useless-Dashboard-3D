@@ -1,75 +1,36 @@
 /* ============================================================================
    meadow.js — grass that bends in travelling gusts, and the flowers in it.
 
-   Each instance is a tuft of four blades. Tufts are bucketed into 25 m tiles
+   Each instance is a tuft of four voxel stalks. Tufts are bucketed into 25 m tiles
    so the camera culls what it can't see, and tiles past the fog are hidden
    outright. The wind is in the vertex shader: a gust is a wave moving across
    the meadow, so neighbouring tufts lean together and the field visibly
    breathes — the classic meadow's travelling gusts, in three dimensions.
 
-   Every blade's normal points straight up. Lit like that, a tuft takes the
+   Every stalk's normal points straight up. Lit like that, a tuft takes the
    ground's light instead of glittering with four random facets.
    ========================================================================== */
 
-import {
-  BufferAttribute, BufferGeometry, Color, DoubleSide, InstancedMesh, MeshLambertMaterial, Object3D,
-} from 'three';
-import { MAP_HALF, grassDensity, heightAt } from './layout.js';
+import { BufferAttribute, Color, InstancedMesh, MeshLambertMaterial, Object3D } from 'three';
+import { MAP_HALF, blockHeight, grassDensity } from './layout.js';
+import { tuftGeometry } from './models.js';
+import { VoxelGrid, color, mesh } from './voxel.js';
 import { fbm2, rng } from '../core/util.js';
 
 const TILE = 25;
-const MAX_TUFTS = 70000;
+const MAX_TUFTS = 45000; // voxel tufts are chunkier than blades; fewer read as just as thick
 const FLOWER_EVERY = 22;
 export const LAYER_GRASS = 2; // not drawn in the occluder pass or the reflection
 
-function tuftGeometry() {
-  const pos = [];
-  const col = [];
-  const uv = [];
-  const idx = [];
-  const base = new Color('#4f8a3e');
-  const tip = new Color('#9ccc6a');
-  const r = rng(5);
-  for (let b = 0; b < 4; b++) {
-    const a = (b / 4) * Math.PI + r() * 0.6;
-    const ox = (r() - 0.5) * 0.28;
-    const oz = (r() - 0.5) * 0.28;
-    const h = 0.38 + r() * 0.3;
-    const w = 0.07;
-    const ca = Math.cos(a);
-    const sa = Math.sin(a);
-    const v = pos.length / 3;
-    // Base pair, middle pair, tip.
-    for (const [s, y, k] of [[-w, 0, 0], [w, 0, 0], [-w * 0.6, h * 0.55, 0.55], [w * 0.6, h * 0.55, 0.55], [0, h, 1]]) {
-      pos.push(ox + ca * s, y, oz + sa * s);
-      const c = base.clone().lerp(tip, k);
-      col.push(c.r, c.g, c.b);
-      uv.push(0, k);
-    }
-    idx.push(v, v + 1, v + 2, v + 1, v + 3, v + 2, v + 2, v + 3, v + 4);
-  }
-  const g = new BufferGeometry();
-  g.setAttribute('position', new BufferAttribute(new Float32Array(pos), 3));
-  g.setAttribute('normal', new BufferAttribute(new Float32Array(pos.length).map((_, i) => (i % 3 === 1 ? 1 : 0)), 3));
-  g.setAttribute('color', new BufferAttribute(new Float32Array(col), 3));
-  g.setAttribute('uv', new BufferAttribute(new Float32Array(uv), 2));
-  g.setIndex(idx);
-  return g;
-}
-
+/** A flower head: a little white voxel cluster above the grass, tinted per instance. */
 function flowerGeometry() {
-  // Two crossed quads on a stalk-height, coloured per instance.
-  const s = 0.09;
-  const y0 = 0.3;
-  const y1 = y0 + s * 2;
-  const pos = [-s, y0, 0, s, y0, 0, -s, y1, 0, s, y1, 0, 0, y0, -s, 0, y0, s, 0, y1, -s, 0, y1, s];
-  const g = new BufferGeometry();
-  g.setAttribute('position', new BufferAttribute(new Float32Array(pos), 3));
-  g.setAttribute('normal', new BufferAttribute(new Float32Array(pos.length).map((_, i) => (i % 3 === 1 ? 1 : 0)), 3));
-  // uv.y is how far up the stalk a vertex is: the wind bends the heads, not the roots.
-  g.setAttribute('uv', new BufferAttribute(new Float32Array([0, 0.6, 0, 0.6, 0, 1, 0, 1, 0, 0.6, 0, 0.6, 0, 1, 0, 1]), 2));
-  g.setIndex([0, 1, 2, 1, 3, 2, 4, 5, 6, 5, 7, 6]);
-  return g;
+  const g = new VoxelGrid([-0.06, 0, -0.06], [0.06, 0.4, 0.06], 0.04);
+  g.fillBox(-0.06, 0.3, -0.02, 0.06, 0.34, 0.02, color('#ffffff'));
+  g.fillBox(-0.02, 0.3, -0.06, 0.02, 0.34, 0.06, color('#ffffff'));
+  g.fillBox(-0.02, 0.34, -0.02, 0.02, 0.38, 0.02, color('#ffffff'));
+  const geo = mesh(g);
+  geo.setAttribute('uv', new BufferAttribute(new Float32Array(geo.attributes.position.count * 2).fill(1), 2)); // all of it sways
+  return geo;
 }
 
 /** Bend tufts in the wind: injected into Lambert so they keep lighting, fog and shadows. */
@@ -101,8 +62,8 @@ function windy(material, uniforms) {
 export class Meadow {
   constructor() {
     this.uniforms = { uTime: { value: 0 }, uWind: { value: 0.4 }, uMotion: { value: 1 } };
-    const grassMat = windy(new MeshLambertMaterial({ vertexColors: true, side: DoubleSide }), this.uniforms);
-    const flowerMat = windy(new MeshLambertMaterial({ side: DoubleSide }), this.uniforms);
+    const grassMat = windy(new MeshLambertMaterial({ vertexColors: true }), this.uniforms);
+    const flowerMat = windy(new MeshLambertMaterial({ vertexColors: true }), this.uniforms);
     const tuft = tuftGeometry();
     const flower = flowerGeometry();
 
@@ -131,8 +92,8 @@ export class Meadow {
       const flowers = new InstancedMesh(flower, flowerMat, Math.ceil(list.length / FLOWER_EVERY));
       let nf = 0;
       list.forEach(([x, z, rot, s, k], i) => {
-        o.position.set(x, heightAt(x, z) - 0.02, z);
-        o.rotation.set(0, rot, 0);
+        o.position.set(x, blockHeight(x, z), z);
+        o.rotation.set(0, Math.round(rot / (Math.PI / 2)) * (Math.PI / 2), 0);
         o.scale.set(s, s * (0.8 + fbm2(x * 0.05, z * 0.05, 2, 9) * 0.6), s);
         o.updateMatrix();
         grass.setMatrixAt(i, o.matrix);
@@ -172,7 +133,8 @@ export class Meadow {
     this.uniforms.uTime.value = env.t;
     this.uniforms.uWind.value = 0.25 + env.wind * 0.9;
     this.uniforms.uMotion.value = env.motion; // reduced motion stills the grass, as in the classic meadow
-    const reach = (far * 0.55 + TILE) ** 2;
+    // Grass past ~70 m is a colour, not a shape: the ground's own green carries it.
+    const reach = (Math.min(70, far * 0.55) + TILE) ** 2;
     for (const t of this.tiles) {
       const dx = t.cx - camPos.x;
       const dz = t.cz - camPos.z;

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   CABIN, DOCK, BRIDGE, HILL, ISLAND, LAKE, SPOTS, WALK_RADIUS, WATER_Y,
-  heightAt, isWater, forestDensity, grassDensity, pathDist, lakeE,
+  heightAt, isWater, forestDensity, grassDensity, pathDist, lakeE, blockHeight, BLOCK, STEP,
 } from './layout.js';
 
 describe('world layout', () => {
@@ -56,5 +56,21 @@ describe('world layout', () => {
   it('puts the stones on the shore', () => {
     expect(lakeE(SPOTS.stones.x, SPOTS.stones.z)).toBeGreaterThan(1);
     expect(lakeE(SPOTS.stones.x, SPOTS.stones.z)).toBeLessThan(1.15);
+  });
+});
+
+describe('block terrain', () => {
+  it('is flat across a column and a whole number of steps high', () => {
+    const h = blockHeight(10.01, 40.01);
+    expect(blockHeight(10.49, 40.49)).toBe(h);
+    expect(Math.abs(h / STEP - Math.round(h / STEP))).toBeLessThan(1e-9);
+  });
+
+  it('stays within half a step of the smooth ground', () => {
+    for (const [x, z] of [[20, 45], [80, -20], [-30, 20], [5, 70]]) {
+      const cx = (Math.floor(x / BLOCK) + 0.5) * BLOCK;
+      const cz = (Math.floor(z / BLOCK) + 0.5) * BLOCK;
+      expect(Math.abs(blockHeight(x, z) - heightAt(cx, cz))).toBeLessThanOrEqual(STEP / 2);
+    }
   });
 });

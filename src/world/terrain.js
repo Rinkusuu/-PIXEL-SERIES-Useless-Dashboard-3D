@@ -1,17 +1,16 @@
 /* ============================================================================
-   terrain.js — the ground mesh, built from layout.heightAt.
+   terrain.js — the ground, as columns of earth.
 
-   One flat-shaded grid, 2 m cells, coloured per face by what the place is:
-   meadow, worn path, sand at the shore, mud under the water, forest floor past the edge.
-   The pixel texture adds grain; the palette's lighting does the rest.
+   Every BLOCK × BLOCK column rises to layout.blockHeight, so the hill is a
+   stack of terraces and the lakeshore steps down into the water: the voxel
+   world's ground. Each column top is coloured by what the place is (meadow,
+   worn path, sand, mud, forest floor); runs of equal height and colour along
+   x merge into one quad, and walls appear only where neighbours differ.
    ========================================================================== */
 
 import { BufferAttribute, BufferGeometry, Color, Mesh, MeshLambertMaterial, RingGeometry } from 'three';
-import { heightAt, lakeE, pathDist, lineDist, STREAM, MAP_HALF, WALK_RADIUS, forestDensity } from './layout.js';
-import { texture } from './textures.js';
+import { BLOCK, MAP_HALF, STREAM, WALK_RADIUS, blockHeight, forestDensity, lakeE, lineDist, pathDist } from './layout.js';
 import { fbm2 } from '../core/util.js';
-
-const CELL = 2;
 
 const C = {
   grass: new Color('#5f9a4a'),
@@ -21,6 +20,7 @@ const C = {
   sand: new Color('#cdbb8a'),
   mud: new Color('#6b5a48'),
 };
+const SIDE = 0.78; // walls catch less sky than tops: a cheap, constant occlusion
 
 /** The colour of the ground at a point. */
 function groundColor(x, z, y, out) {
@@ -43,61 +43,84 @@ function groundColor(x, z, y, out) {
   return out;
 }
 
+/** Quantise a colour so neighbouring columns share it and their tops can merge. */
+const LEVELS = 20;
+const q = (v) => Math.round(v * LEVELS) / LEVELS;
+
 export function buildTerrain() {
-  const n = Math.round((MAP_HALF * 2) / CELL);
-  const H = new Float32Array((n + 1) * (n + 1));
-  for (let j = 0; j <= n; j++) {
-    for (let i = 0; i <= n; i++) H[j * (n + 1) + i] = heightAt(-MAP_HALF + i * CELL, -MAP_HALF + j * CELL);
-  }
-
-  // Non-indexed: each triangle gets its own vertices, so its normal (and its
-  // colour) is flat. That is the low-poly look, and it costs nothing extra.
-  const tris = n * n * 2;
-  const pos = new Float32Array(tris * 9);
-  const col = new Float32Array(tris * 9);
-  const uv = new Float32Array(tris * 6);
-  const c = new Color();
-  let v = 0;
-
-  const put = (i, j) => {
-    const x = -MAP_HALF + i * CELL;
-    const z = -MAP_HALF + j * CELL;
-    pos[v * 3] = x;
-    pos[v * 3 + 1] = H[j * (n + 1) + i];
-    pos[v * 3 + 2] = z;
-    uv[v * 2] = x / CELL;
-    uv[v * 2 + 1] = z / CELL;
-    v++;
-  };
-
+  const n = Math.round((MAP_HALF * 2) / BLOCK);
+  const H = new Float32Array(n * n);
+  const K = new Uint32Array(n * n); // packed quantised colour, for merging
+  const cols = new Map(); // packed → [r, g, b]
+  const tmp = new Color();
   for (let j = 0; j < n; j++) {
     for (let i = 0; i < n; i++) {
-      // Alternate the diagonal so the grid doesn't read as stripes.
-      const flip = (i + j) % 2 === 0;
-      const quads = flip
-        ? [[i, j], [i, j + 1], [i + 1, j], [i + 1, j], [i, j + 1], [i + 1, j + 1]]
-        : [[i, j], [i, j + 1], [i + 1, j + 1], [i, j], [i + 1, j + 1], [i + 1, j]];
-      for (let t = 0; t < 2; t++) {
-        const start = v;
-        for (let k = 0; k < 3; k++) put(...quads[t * 3 + k]);
-        // One colour per face, sampled at its centre.
-        const cx = (pos[start * 3] + pos[start * 3 + 3] + pos[start * 3 + 6]) / 3;
-        const cy = (pos[start * 3 + 1] + pos[start * 3 + 4] + pos[start * 3 + 7]) / 3;
-        const cz = (pos[start * 3 + 2] + pos[start * 3 + 5] + pos[start * 3 + 8]) / 3;
-        groundColor(cx, cz, cy, c);
-        for (let k = 0; k < 3; k++) c.toArray(col, (start + k) * 3);
-      }
+      const x = -MAP_HALF + (i + 0.5) * BLOCK;
+      const z = -MAP_HALF + (j + 0.5) * BLOCK;
+      const h = blockHeight(x, z);
+      H[j * n + i] = h;
+      groundColor(x, z, h, tmp);
+      const rgb = [q(tmp.r), q(tmp.g), q(tmp.b)];
+      const key = (rgb[0] * LEVELS) | ((rgb[1] * LEVELS) << 8) | ((rgb[2] * LEVELS) << 16);
+      cols.set(key, rgb);
+      K[j * n + i] = key;
+    }
+  }
+
+  const pos = [];
+  const nor = [];
+  const col = [];
+  const idx = [];
+  // Four corners, counter-clockwise seen from the normal's side.
+  const quad = (a, b, c2, d, normal, rgb, k = 1) => {
+    const base = pos.length / 3;
+    for (const p of [a, b, c2, d]) {
+      pos.push(p[0], p[1], p[2]);
+      nor.push(normal[0], normal[1], normal[2]);
+      col.push(rgb[0] * k, rgb[1] * k, rgb[2] * k);
+    }
+    idx.push(base, base + 1, base + 2, base, base + 2, base + 3);
+  };
+  const X = (i) => -MAP_HALF + i * BLOCK;
+  const Z = (j) => -MAP_HALF + j * BLOCK;
+  const FLOOR = -4;
+
+  for (let j = 0; j < n; j++) {
+    // Tops, merged along x.
+    for (let i = 0; i < n; ) {
+      const h = H[j * n + i];
+      const key = K[j * n + i];
+      let w = 1;
+      while (i + w < n && H[j * n + i + w] === h && K[j * n + i + w] === key) w++;
+      quad([X(i), h, Z(j + 1)], [X(i + w), h, Z(j + 1)], [X(i + w), h, Z(j)], [X(i), h, Z(j)], [0, 1, 0], cols.get(key));
+      i += w;
+    }
+    // Walls where neighbours differ, and down to the floor at the map's edge.
+    for (let i = 0; i < n; i++) {
+      const h = H[j * n + i];
+      const rgb = cols.get(K[j * n + i]);
+      const east = i + 1 < n ? H[j * n + i + 1] : FLOOR;
+      const west = i > 0 ? H[j * n + i - 1] : FLOOR;
+      const south = j + 1 < n ? H[(j + 1) * n + i] : FLOOR;
+      const north = j > 0 ? H[(j - 1) * n + i] : FLOOR;
+      const x0 = X(i), x1 = X(i + 1), z0 = Z(j), z1 = Z(j + 1);
+      if (east < h) quad([x1, east, z1], [x1, east, z0], [x1, h, z0], [x1, h, z1], [1, 0, 0], rgb, SIDE);
+      if (west < h) quad([x0, west, z0], [x0, west, z1], [x0, h, z1], [x0, h, z0], [-1, 0, 0], rgb, SIDE);
+      if (south < h) quad([x0, south, z1], [x1, south, z1], [x1, h, z1], [x0, h, z1], [0, 0, 1], rgb, SIDE);
+      if (north < h) quad([x1, north, z0], [x0, north, z0], [x0, h, z0], [x1, h, z0], [0, 0, -1], rgb, SIDE);
     }
   }
 
   const g = new BufferGeometry();
-  g.setAttribute('position', new BufferAttribute(pos, 3));
-  g.setAttribute('color', new BufferAttribute(col, 3));
-  g.setAttribute('uv', new BufferAttribute(uv, 2));
-  g.computeVertexNormals();
+  g.setAttribute('position', new BufferAttribute(new Float32Array(pos), 3));
+  g.setAttribute('normal', new BufferAttribute(new Float32Array(nor), 3));
+  g.setAttribute('color', new BufferAttribute(new Float32Array(col), 3));
+  g.setIndex(new BufferAttribute(pos.length / 3 > 65535 ? new Uint32Array(idx) : new Uint16Array(idx), 1));
+  g.computeBoundingSphere();
 
-  const mesh = new Mesh(g, new MeshLambertMaterial({ vertexColors: true, map: texture('ground') }));
+  const mesh = new Mesh(g, new MeshLambertMaterial({ vertexColors: true }));
   mesh.receiveShadow = true;
+  mesh.castShadow = true; // terraces shade the step below them
   mesh.matrixAutoUpdate = false;
   return mesh;
 }

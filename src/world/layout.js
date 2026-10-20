@@ -176,6 +176,48 @@ export function heightAt(x, z) {
   return h;
 }
 
+/* ── Lamp posts ──────────────────────────────────────────────────────────────
+   Every LAMP_EVERY metres along each path, a step to its side, never in water
+   and never on the path itself. Computed once; props.js builds them and
+   lights.js lights the nearest few. */
+const LAMP_EVERY = 16;
+
+function placeLamps() {
+  const out = [];
+  PATHS.forEach((pts, p) => {
+    let carry = LAMP_EVERY * 0.5;
+    for (let i = 1; i < pts.length; i++) {
+      const [ax, az] = pts[i - 1];
+      const [bx, bz] = pts[i];
+      const len = Math.hypot(bx - ax, bz - az);
+      for (let d = carry; d < len; d += LAMP_EVERY) {
+        const t = d / len;
+        const side = (out.length + p) % 2 ? 1.6 : -1.6; // alternate sides
+        const x = ax + (bx - ax) * t + ((bz - az) / len) * side;
+        const z = az + (bz - az) * t - ((bx - ax) / len) * side;
+        if (!isWater(x, z) && pathDist(x, z) > 1.1) out.push({ x, z });
+      }
+      carry = (carry - len) % LAMP_EVERY;
+      if (carry < 0) carry += LAMP_EVERY;
+    }
+  });
+  return out;
+}
+
+/* ── The ground as blocks ───────────────────────────────────────────────────
+   The terrain is drawn as columns: BLOCK metres across, heights rounded to
+   STEP. Everything that stands on the ground (the player's feet, trees, grass,
+   props) asks blockHeight, so nothing floats above a step or sinks into one. */
+export const BLOCK = 0.5;
+export const STEP = 0.25;
+
+/** The top of the ground column containing (x, z). */
+export function blockHeight(x, z) {
+  const cx = (Math.floor(x / BLOCK) + 0.5) * BLOCK;
+  const cz = (Math.floor(z / BLOCK) + 0.5) * BLOCK;
+  return Math.round(heightAt(cx, cz) / STEP) * STEP;
+}
+
 /* ── What a place is ─────────────────────────────────────────────────────── */
 
 /** Water you cannot walk into: the lake, and the stream away from the bridge. */
@@ -212,3 +254,5 @@ export function grassDensity(x, z) {
   const shade = forestDensity(x, z);
   return clamp(1 - shade * 1.4, 0, 1) * (0.55 + 0.45 * fbm2(x * 0.04, z * 0.04, 2, 11));
 }
+
+export const LAMPS = placeLamps();

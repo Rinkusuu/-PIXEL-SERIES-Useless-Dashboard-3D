@@ -10,44 +10,13 @@
    on the island. They are always first, so no tier removes them.
    ========================================================================== */
 
-import {
-  BufferAttribute, Color, ConeGeometry, CylinderGeometry, IcosahedronGeometry, InstancedMesh,
-  MeshLambertMaterial, Object3D,
-} from 'three';
-import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { ISLAND, MAP_HALF, SPOTS, forestDensity, heightAt } from './layout.js';
+import { Color, InstancedMesh, MeshLambertMaterial, Object3D } from 'three';
+import { ISLAND, MAP_HALF, SPOTS, blockHeight, forestDensity } from './layout.js';
+import { mesh } from './voxel.js';
+import { pine, roundTree } from './models.js';
 import { rng } from '../core/util.js';
 
 const MAX_TREES = 2200;
-
-/** Flat-shaded, vertex-coloured part. */
-function part(geo, hex, dy) {
-  const g = geo.index ? geo.toNonIndexed() : geo;
-  g.translate(0, dy, 0);
-  g.computeVertexNormals();
-  const c = new Color(hex);
-  const col = new Float32Array(g.attributes.position.count * 3);
-  for (let i = 0; i < col.length; i += 3) c.toArray(col, i);
-  g.setAttribute('color', new BufferAttribute(col, 3));
-  return g;
-}
-
-function pineGeometry() {
-  return mergeGeometries([
-    part(new CylinderGeometry(0.16, 0.22, 1.8, 5), '#7a5a40', 0.9),
-    part(new ConeGeometry(1.7, 2.6, 7), '#3f7a52', 2.6),
-    part(new ConeGeometry(1.3, 2.2, 7), '#468658', 3.9),
-    part(new ConeGeometry(0.85, 1.9, 7), '#4f9160', 5.0),
-  ]);
-}
-
-function roundGeometry() {
-  return mergeGeometries([
-    part(new CylinderGeometry(0.18, 0.26, 2.6, 5), '#7a5a40', 1.3),
-    part(new IcosahedronGeometry(1.9, 0), '#5a9a4e', 3.6),
-    part(new IcosahedronGeometry(1.2, 0), '#6aaa58', 4.7),
-  ]);
-}
 
 /** Every tree's place, species and size, decided once from a seed. */
 export function plantForest() {
@@ -74,58 +43,95 @@ export function plantForest() {
   return trees.concat(random);
 }
 
+const TILE = 32;
+const NEAR = 45; // metres: closer than this, the full 25 cm voxel tree; further, the 50 cm one
+
 export class Forest {
   constructor(col) {
     this.trees = plantForest();
     const mat = new MeshLambertMaterial({ vertexColors: true });
-    this.meshes = {
-      pine: new InstancedMesh(pineGeometry(), mat, this.trees.length),
-      round: new InstancedMesh(roundGeometry(), mat, this.trees.length),
+    const geo = {
+      near: { pine: mesh(pine(1, 0.25)), round: mesh(roundTree(2, 0.25)) },
+      far: { pine: mesh(pine(1, 0.5)), round: mesh(roundTree(2, 0.5)) },
     };
+
+    // Bucket by tile, keeping the shuffled order inside each tile, so a
+    // density prefix of the whole forest is a prefix of every tile.
+    const buckets = new Map();
+    this.trees.forEach((t, idx) => {
+      const key = `${Math.floor(t.x / TILE)},${Math.floor(t.z / TILE)}`;
+      if (!buckets.has(key)) buckets.set(key, []);
+      buckets.get(key).push(idx);
+    });
+
     const o = new Object3D();
     const tint = new Color();
-    const count = { pine: 0, round: 0 };
     const r = rng(17);
-    this.slots = []; // tree index → [kind, instance index]
-    for (const t of this.trees) {
-      o.position.set(t.x, heightAt(t.x, t.z) - 0.15, t.z);
-      o.rotation.set(0, t.rot, 0);
-      o.scale.setScalar(t.s);
-      o.updateMatrix();
-      const m = this.meshes[t.kind];
-      const i = count[t.kind]++;
-      m.setMatrixAt(i, o.matrix);
-      // A little variety of green per tree, so the forest isn't one colour.
-      m.setColorAt(i, tint.setHSL(0, 0, 0.82 + r() * 0.3));
-      this.slots.push([t.kind, i]);
-      t.collider = col.addCircle(t.x, t.z, 0.28 * t.s + 0.05);
+    this.tiles = [];
+    for (const [key, list] of buckets) {
+      const [tx, tz] = key.split(',').map(Number);
+      const tile = { cx: (tx + 0.5) * TILE, cz: (tz + 0.5) * TILE, list, near: {}, far: {} };
+      for (const lod of ['near', 'far']) {
+        for (const kind of ['pine', 'round']) {
+          const n = list.filter((i) => this.trees[i].kind === kind).length;
+          const m = new InstancedMesh(geo[lod][kind], mat, Math.max(1, n));
+          m.castShadow = m.receiveShadow = true;
+          m.count = 0;
+          tile[lod][kind] = m;
+        }
+      }
+      const count = { pine: 0, round: 0 };
+      for (const i of list) {
+        const t = this.trees[i];
+        o.position.set(t.x, blockHeight(t.x, t.z), t.z);
+        // Quarter turns only: a voxel tree turned 37° stops lining up with the voxel world.
+        o.rotation.set(0, Math.round(t.rot / (Math.PI / 2)) * (Math.PI / 2), 0);
+        o.scale.setScalar(t.s);
+        o.updateMatrix();
+        tint.setHSL(0, 0, 0.82 + r() * 0.3); // a little variety of green per tree
+        const k = count[t.kind]++;
+        for (const lod of ['near', 'far']) {
+          tile[lod][t.kind].setMatrixAt(k, o.matrix);
+          tile[lod][t.kind].setColorAt(k, tint);
+        }
+        t.collider = col.addCircle(t.x, t.z, 0.28 * t.s + 0.05);
+      }
+      for (const lod of ['near', 'far']) {
+        for (const kind of ['pine', 'round']) {
+          const m = tile[lod][kind];
+          m.count = count[kind];
+          m.instanceMatrix.needsUpdate = true;
+          m.computeBoundingSphere(); // per tile, so the camera and the shadow camera can cull it
+        }
+      }
+      this.tiles.push(tile);
     }
-    for (const [k, m] of Object.entries(this.meshes)) {
-      m.count = count[k];
-      m.castShadow = true;
-      m.receiveShadow = true;
-      m.instanceMatrix.needsUpdate = true;
-      m.computeBoundingSphere();
-    }
-    this.total = count;
+    this.setDensity(1);
   }
 
   addTo(scene) {
-    scene.add(this.meshes.pine, this.meshes.round);
+    for (const t of this.tiles) scene.add(t.near.pine, t.near.round, t.far.pine, t.far.round);
   }
 
   /** Keep the first `fraction` of the shuffled forest; switch the rest's trunks off too. */
   setDensity(fraction) {
     const keep = Math.max(2, Math.round(this.trees.length * fraction));
-    const shown = { pine: 0, round: 0 };
-    this.trees.forEach((t, i) => {
-      const on = i < keep;
-      t.collider.on = on;
-      if (on) shown[t.kind] = Math.max(shown[t.kind], this.slots[i][1] + 1);
-    });
-    // Instances were written in tree order per species, so a prefix of trees
-    // is a prefix of each species' instances.
-    this.meshes.pine.count = shown.pine;
-    this.meshes.round.count = shown.round;
+    this.trees.forEach((t, i) => (t.collider.on = i < keep));
+    for (const tile of this.tiles) {
+      const shown = { pine: 0, round: 0 };
+      for (const i of tile.list) if (i < keep) shown[this.trees[i].kind]++;
+      for (const lod of ['near', 'far']) for (const kind of ['pine', 'round']) tile[lod][kind].count = shown[kind];
+    }
+  }
+
+  /** Detail by distance, and nothing at all past the fog. */
+  update(camPos, far) {
+    for (const t of this.tiles) {
+      const d = Math.hypot(t.cx - camPos.x, t.cz - camPos.z) - TILE * 0.7;
+      const near = d < NEAR;
+      const seen = d < far;
+      t.near.pine.visible = t.near.round.visible = seen && near;
+      t.far.pine.visible = t.far.round.visible = seen && !near;
+    }
   }
 }

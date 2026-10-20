@@ -14,7 +14,7 @@
    draw call, however many cubes.
    ========================================================================== */
 
-import { BufferAttribute, BufferGeometry, Color } from 'three';
+import { BufferAttribute, BufferGeometry, Color, Mesh, MeshLambertMaterial } from 'three';
 import { hash, noise2 } from '../core/util.js';
 
 /* ── The shared palette ────────────────────────────────────────────────────
@@ -261,4 +261,14 @@ export function mesh(grid) {
   g.setAttribute('color', new BufferAttribute(new Float32Array(col), 3));
   g.computeBoundingSphere();
   return g;
+}
+
+const material = new MeshLambertMaterial({ vertexColors: true });
+
+/** A grid as a ready mesh: one shared material, casting and receiving shadow. */
+export function voxelMesh(grid) {
+  const m = new Mesh(mesh(grid), material);
+  m.castShadow = true;
+  m.receiveShadow = true;
+  return m;
 }
