@@ -28,9 +28,9 @@ export class Collision {
     this.grid = new Map(); // circles, bucketed: there are hundreds of trees
   }
 
-  /** A circle (tree trunk, post). */
+  /** A circle (tree trunk, post). Returns it so a tier change can switch it off. */
   addCircle(x, z, r, y0 = -Infinity, y1 = Infinity) {
-    const c = { x, z, r, y0, y1 };
+    const c = { x, z, r, y0, y1, on: true };
     const k = `${Math.floor(x / CELL)},${Math.floor(z / CELL)}`;
     if (!this.grid.has(k)) this.grid.set(k, []);
     this.grid.get(k).push(c);
@@ -121,7 +121,7 @@ export class Collision {
           const cell = this.grid.get(`${gx + i},${gz + j}`);
           if (!cell) continue;
           for (const c of cell) {
-            if (c.y1 <= lo || c.y0 >= hi) continue;
+            if (!c.on || c.y1 <= lo || c.y0 >= hi) continue;
             const ox = p.x - c.x;
             const oz = p.z - c.z;
             const d = Math.hypot(ox, oz);

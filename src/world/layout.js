@@ -44,8 +44,9 @@ export const CABIN = {
 };
 
 export const DOCK = { x: -40, z0: 18, z1: -12, w: 2.6, y: 0.75 };
-export const BRIDGE = { x: 30, z: 22, len: 7, w: 2.2, yaw: 0.9 };
-export const TOWER = { x: 25, z: -95, size: 3.4, deckY: 9 };
+// yaw turns the deck to run along the path between its neighbouring waypoints.
+export const BRIDGE = { x: 30, z: 22, len: 7, w: 2.2, yaw: Math.atan2(44 - 24, 10 - 32) };
+export const TOWER = { x: 25, z: -95, size: 3.4, deck: 9, stairRun: 15 }; // deck height above the ground; one long south-facing stair
 
 /* The fifteen panels' objects live in P3; these are the places they stand. */
 export const SPOTS = {
@@ -122,9 +123,10 @@ function landHeight(x, z) {
   const dt = Math.hypot(x - TOWER.x, z - TOWER.z);
   h += 2.2 * (1 - sstep(0, 18, dt));
 
-  // The rim: past the walkable disc, the land climbs out of sight.
+  // The rim: past the walkable disc the land lifts a little and the forest
+  // closes in. Capped, so the square map's corners don't tower over everything.
   const r = Math.hypot(x, z);
-  h += Math.max(0, r - WALK_RADIUS + 4) * 0.45;
+  h += Math.min(6, Math.max(0, r - WALK_RADIUS + 4) * 0.3);
 
   // The lake basin.
   const e = lakeE(x, z);
@@ -185,18 +187,18 @@ export function isWater(x, z) {
 /** 0–1: how much forest wants to grow here. */
 export function forestDensity(x, z) {
   const r = Math.hypot(x, z);
-  if (r > WALK_RADIUS + 6) return 0;
   if (lakeE(x, z) < 1.12) return 0;
+  if (r > WALK_RADIUS + 4) return 0.95; // beyond the walkable disc: a wall of trees into the fog
   if (pathDist(x, z) < 4) return 0;
   if (lineDist(x, z, STREAM).d < 4) return 0;
   if (inCabinPad(x, z, 18)) return 0;
   if (Math.hypot(x - HILL.x, z - HILL.z) < 22) return 0;
-  if (Math.hypot(x - TOWER.x, z - TOWER.z) < 6) return 0;
+  if (Math.hypot(x - TOWER.x, z - TOWER.z) < 7 || segDist(x, z, TOWER.x, TOWER.z, TOWER.x, TOWER.z + TOWER.stairRun + 4).d < 4) return 0;
   if (Math.hypot(x - SPOTS.leafTree.x, z - SPOTS.leafTree.z) < 7) return 0;
 
   const north = sstep(-25, -65, z); // the forest proper
   const rim = sstep(88, 108, r); // trees thicken toward the edge
-  const scatter = 0.06 * fbm2(x * 0.05, z * 0.05, 2, 3); // the odd tree in the meadow
+  const scatter = 0.2 * Math.max(0, fbm2(x * 0.05, z * 0.05, 2, 3) - 0.62); // the odd tree in the meadow, in a few clumps
   return clamp(Math.max(north * 0.85, rim * 0.7) + scatter, 0, 1);
 }
 
