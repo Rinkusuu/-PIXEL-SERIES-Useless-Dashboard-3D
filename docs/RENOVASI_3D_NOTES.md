@@ -227,3 +227,11 @@ Notes and commits are in English from here on. The P0 sections above stay in Ind
 | UI language | English. |
 | Test device | Mac, Chrome. |
 | Bundle budget | No hard cap, but every number gets reported honestly. |
+
+## P0.4 — "Before" captures (done)
+
+`docs/screens/renovasi-3d/before-{1920,1366,430,390}-{noon,midnight}.png`, taken with `node scripts/capture.mjs before` against `vite preview`: geolocation fixed to Jakarta, clear weather forced, hour frozen through `timeOverride`. Clocks and particles stay live, so a later comparison should check layout and colour, not pixel-for-pixel equality.
+
+**Baseline bundle (vite build, pre-renovation):** JS 161.6 KB → **59.4 KB gz** · CSS 41.6 KB → **8.2 KB gz** · fonts 17.3 KB (6 woff2) · index.html 1.6 KB gz.
+
+Housekeeping: `@playwright/test` added as a devDependency (the spec needs it for e2e in P1/P3; Chromium headless shell downloaded to the user cache).
