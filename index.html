@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en" data-scheme="auto">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="color-scheme" content="dark light" />
+    <meta
+      name="description"
+      content="The Useless but Aesthetic Dashboard — a cozy animated pixel-art world that tells the time, the weather, and absolutely nothing you need to know."
+    />
+    <title>The Useless but Aesthetic Dashboard</title>
+
+    <!-- The fonts are self-hosted (src/styles/fonts.css). There is no longer a
+         single byte in this app that comes from anyone else's server. -->
+
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="theme-color" content="#18183a" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' fill='%2318183a'/%3E%3Crect x='6' y='2' width='4' height='2' fill='%23ffe9a8'/%3E%3Crect x='4' y='4' width='8' height='2' fill='%23ffd479'/%3E%3Crect x='3' y='6' width='10' height='4' fill='%23f7b955'/%3E%3Crect x='5' y='10' width='6' height='2' fill='%237fd6c2'/%3E%3C/svg%3E" />
+  </head>
+
+  <body>
+    <!-- ── The living world ─────────────────────────────────────────────── -->
+    <div class="world" aria-hidden="true">
+      <canvas id="scene" class="world__canvas"></canvas>
+      <!-- Emissive buffer: blurred + screen-blended over the scene for bloom -->
+      <canvas id="glow" class="world__canvas world__canvas--glow"></canvas>
+      <div class="world__vignette"></div>
+      <div class="world__scanlines"></div>
+    </div>
+
+    <!-- ── Boot veil ────────────────────────────────────────────────────── -->
+    <div id="boot" class="boot">
+      <div class="boot__inner">
+        <div class="boot__logo" aria-hidden="true"></div>
+        <p class="boot__label">waking up the world…</p>
+        <div class="boot__bar"><i></i></div>
+      </div>
+    </div>
+
+    <!-- ── The dashboard ────────────────────────────────────────────────── -->
+    <div id="app" class="app">
+      <header class="topbar">
+        <div class="topbar__brand">
+          <canvas id="brandSigil" class="topbar__sigil" width="16" height="16" aria-hidden="true"></canvas>
+          <div class="topbar__titles">
+            <h1 class="topbar__title">The Useless but Aesthetic Dashboard</h1>
+            <p class="topbar__sub" id="sceneCaption">a quiet place where nothing gets done</p>
+          </div>
+        </div>
+
+        <nav class="topbar__tools" aria-label="Dashboard controls">
+          <button
+            class="tbtn"
+            id="btnSound"
+            type="button"
+            aria-pressed="false"
+            title="Ambient sound &amp; UI blips"
+          >
+            <span class="tbtn__ico" data-ico="sound" aria-hidden="true"></span>
+            <span class="tbtn__txt">Sound</span>
+          </button>
+          <button class="tbtn" id="btnMotion" type="button" aria-pressed="true" title="Ambient motion">
+            <span class="tbtn__ico" data-ico="motion" aria-hidden="true"></span>
+            <span class="tbtn__txt">Motion</span>
+          </button>
+          <button class="tbtn" id="btnTime" type="button" title="Cycle the time of day (it is not real time anymore)">
+            <span class="tbtn__ico" data-ico="clock" aria-hidden="true"></span>
+            <span class="tbtn__txt" id="btnTimeTxt">Live</span>
+          </button>
+        </nav>
+      </header>
+
+      <!-- Widgets are mounted here by src/main.js -->
+      <main class="grid" id="grid" aria-label="Widgets"></main>
+
+      <footer class="footer">
+        <p class="footer__line">
+          Nothing productive happened today, and that's perfectly okay 🌱
+        </p>
+        <p class="footer__meta">
+          <span id="fpsReadout" class="footer__fps" title="Frames per second">—</span>
+          <span class="footer__dot">·</span>
+          <span>hand-pixelled in a single render loop</span>
+        </p>
+      </footer>
+    </div>
+
+    <div id="toasts" class="toasts" role="status" aria-live="polite"></div>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

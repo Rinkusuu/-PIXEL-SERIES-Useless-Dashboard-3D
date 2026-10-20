@@ -1,0 +1,333 @@
+/* ============================================================================
+   base.css — reset, page chrome, the world canvases, boot veil, footer.
+   ========================================================================== */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  min-height: 100svh;
+  font-family: var(--font-ui);
+  font-size: var(--fs-base);
+  color: var(--amb-ink);
+  background: #0b0d1c; /* seen for ~1 frame before the sky paints */
+  overflow-x: hidden;
+  -webkit-font-smoothing: none; /* keep pixel fonts crisp, never anti-aliased */
+  font-smooth: never;
+  text-rendering: optimizeSpeed;
+  transition: color var(--dur-slow) linear;
+}
+
+/* Pixel fonts are drawn on an integer grid; sub-pixel positioning smears them. */
+h1,
+h2,
+h3,
+button,
+.pixel-type {
+  letter-spacing: 0.02em;
+}
+
+img,
+canvas {
+  display: block;
+  max-width: 100%;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+:focus-visible {
+  outline: var(--px) solid var(--amb-accent);
+  outline-offset: var(--px);
+  border-radius: 2px;
+}
+
+::selection {
+  background: color-mix(in oklab, var(--amb-accent) 55%, transparent);
+  color: #0b0d1c;
+}
+
+/* ── The world ───────────────────────────────────────────────────────────── */
+
+.world {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-world);
+  overflow: hidden;
+  background: #0b0d1c;
+  contain: strict; /* the scene can never reflow the document */
+}
+
+.world__canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  /* The heart of the look: a ~500px-wide buffer blown up with hard edges. */
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+/* The emissive buffer. Only bright things (stars, the moon, fireflies, window
+   lights, lightning) are drawn into it; blurring and screen-blending it back
+   over the scene is what produces the soft indie-game bloom. */
+.world__canvas--glow {
+  filter: blur(14px) saturate(1.35);
+  mix-blend-mode: screen;
+  opacity: 0.85;
+  will-change: opacity;
+}
+
+@media (max-width: 700px) {
+  /* Blur is the single most expensive pixel op on mobile GPUs. */
+  .world__canvas--glow {
+    filter: blur(9px) saturate(1.25);
+  }
+}
+
+.world__vignette {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    118% 90% at 50% 42%,
+    transparent 42%,
+    rgb(4 4 14 / 0.32) 78%,
+    rgb(3 3 10 / 0.62) 100%
+  );
+}
+
+/* A whisper of CRT. At 0.035 alpha you don't see it — you only feel it. */
+.world__scanlines {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.035;
+  background: repeating-linear-gradient(
+    to bottom,
+    #fff 0 1px,
+    transparent 1px 3px
+  );
+  mix-blend-mode: overlay;
+}
+
+/* ── Boot veil ───────────────────────────────────────────────────────────── */
+
+.boot {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-boot);
+  display: grid;
+  place-items: center;
+  background: #0b0d1c;
+  transition: opacity 620ms var(--ease-out), visibility 620ms;
+}
+
+.boot[data-done='true'] {
+  opacity: 0;
+  visibility: hidden;
+}
+
+.boot__inner {
+  display: grid;
+  gap: var(--px5);
+  justify-items: center;
+  text-align: center;
+}
+
+.boot__logo {
+  width: 64px;
+  height: 64px;
+  background: conic-gradient(from 0deg, #ffd479, #7fd6c2, #a98bff, #ffd479);
+  clip-path: polygon(
+    50% 0,
+    62% 30%,
+    100% 50%,
+    62% 70%,
+    50% 100%,
+    38% 70%,
+    0 50%,
+    38% 30%
+  );
+  animation: bootSpin 3.2s linear infinite;
+  filter: drop-shadow(0 0 16px #ffd47988);
+}
+
+.boot__label {
+  font-family: var(--font-ui);
+  font-size: var(--fs-small);
+  color: #8e93bd;
+}
+
+.boot__bar {
+  width: 180px;
+  height: var(--px2);
+  background: #1b1f3a;
+  overflow: hidden;
+}
+
+.boot__bar > i {
+  display: block;
+  height: 100%;
+  width: 40%;
+  background: linear-gradient(90deg, #ffd479, #7fd6c2);
+  animation: bootSlide 1.1s var(--ease-out) infinite;
+}
+
+@keyframes bootSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes bootSlide {
+  0% {
+    transform: translateX(-110%);
+  }
+  100% {
+    transform: translateX(360%);
+  }
+}
+
+/* ── App shell ───────────────────────────────────────────────────────────── */
+
+.app {
+  position: relative;
+  z-index: var(--z-app);
+  display: flex;
+  flex-direction: column;
+  gap: var(--px6);
+  min-height: 100svh;
+  padding: var(--px5) clamp(var(--px3), 3vw, var(--px8)) var(--px5);
+  max-width: 1680px;
+  margin-inline: auto;
+}
+
+/* Ultra-wide: don't let the grid stretch into a runway. */
+@media (min-width: 2100px) {
+  .app {
+    max-width: 1880px;
+  }
+}
+
+/* ── Footer ──────────────────────────────────────────────────────────────── */
+
+.footer {
+  margin-top: auto;
+  padding-top: var(--px3);
+  display: grid;
+  gap: var(--px2);
+  justify-items: center;
+  text-align: center;
+}
+
+.footer__line {
+  font-family: var(--font-ui);
+  font-size: var(--fs-small);
+  color: var(--amb-ink);
+  text-shadow: 0 2px 0 rgb(0 0 0 / 0.45);
+  animation: breathe calc(6s / max(var(--motion), 0.0001)) ease-in-out infinite;
+}
+
+.footer__meta {
+  display: flex;
+  align-items: center;
+  gap: var(--px2);
+  font-family: var(--font-body);
+  font-size: var(--fs-nano);
+  color: color-mix(in oklab, var(--amb-ink-soft) 70%, transparent);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+}
+
+.footer__fps {
+  font-variant-numeric: tabular-nums;
+}
+
+@keyframes breathe {
+  0%,
+  100% {
+    opacity: 0.75;
+    transform: translateY(0);
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(calc(-2px * var(--motion)));
+  }
+}
+
+/* ── Toasts ──────────────────────────────────────────────────────────────── */
+
+.toasts {
+  position: fixed;
+  z-index: var(--z-toast);
+  right: var(--px5);
+  bottom: var(--px5);
+  display: grid;
+  gap: var(--px2);
+  justify-items: end;
+  pointer-events: none;
+}
+
+.toast {
+  display: flex;
+  align-items: center;
+  gap: var(--px2);
+  padding: var(--px2) var(--px3);
+  font-size: var(--fs-micro);
+  color: var(--amb-ink);
+  background: var(--glass-bg);
+  backdrop-filter: blur(10px);
+  box-shadow:
+    0 calc(-1 * var(--px)) 0 0 var(--glass-edge),
+    0 var(--px) 0 0 var(--glass-edge),
+    calc(-1 * var(--px)) 0 0 0 var(--glass-edge),
+    var(--px) 0 0 0 var(--glass-edge),
+    var(--shadow-rest);
+  animation: toastIn 320ms var(--ease-spring) both;
+}
+
+.toast[data-leaving='true'] {
+  animation: toastOut 260ms var(--ease-out) both;
+}
+
+.toast__ico {
+  font-size: var(--fs-base);
+  line-height: 1;
+}
+
+@keyframes toastIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.96);
+  }
+}
+@keyframes toastOut {
+  to {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+}
+
+@media (max-width: 700px) {
+  .toasts {
+    right: var(--px3);
+    bottom: var(--px3);
+    left: var(--px3);
+    justify-items: stretch;
+  }
+}

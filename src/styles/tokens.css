@@ -1,0 +1,99 @@
+/* ============================================================================
+   tokens.css — the single source of truth for colour, rhythm and motion.
+
+   The `--amb-*` tokens are REWRITTEN EVERY FEW FRAMES by scene/Ambience.js so
+   the entire UI inherits the sky's mood: at dawn the glass turns peach, at
+   midnight it turns deep indigo. Never hard-code a colour that should breathe.
+   ========================================================================== */
+
+:root {
+  /* ── Ambient (live, driven by the day/night cycle) ───────────────────── */
+  --amb-deep: #131a33; /* darkest scene tone — panel bodies            */
+  --amb-mid: #2b3560; /* mid scene tone — borders, dividers            */
+  --amb-lift: #55689c; /* lifted tone — hover states                   */
+  --amb-glow: #ffd479; /* the current key light (sun / moon)           */
+  --amb-accent: #7fd6c2; /* complementary spark — links, focus         */
+  --amb-ink: #f4f1ff; /* text on glass                                 */
+  --amb-ink-soft: #b9b6d6; /* secondary text                          */
+  --amb-lum: 0.5; /* 0 = deep night, 1 = high noon (unitless)          */
+
+  /* ── Glass ───────────────────────────────────────────────────────────── */
+  /* 86% is the legibility floor. Below it, the animated world behind the glass
+     shows through strongly enough that moving grass changes the local contrast
+     under the text — copy that is readable one second and not the next.
+     Frosted, not transparent. */
+  --glass-bg: color-mix(in oklab, var(--amb-deep) 86%, transparent);
+  --glass-hi: color-mix(in oklab, #ffffff 14%, transparent);
+  --glass-lo: color-mix(in oklab, #000000 30%, transparent);
+  --glass-edge: color-mix(in oklab, var(--amb-mid) 88%, #000 12%);
+  --glass-blur: 18px;
+
+  /* ── Pixel geometry ──────────────────────────────────────────────────── */
+  /* Every border, gap and radius is a multiple of --px so nothing ever
+     lands on a half-pixel and blurs. */
+  --px: 4px;
+  --px2: 8px;
+  --px3: 12px;
+  --px4: 16px;
+  --px5: 20px;
+  --px6: 24px;
+  --px8: 32px;
+
+  /* ── Type ────────────────────────────────────────────────────────────── */
+  --font-display: 'Press Start 2P', 'Silkscreen', ui-monospace, monospace;
+  --font-ui: 'Silkscreen', 'Press Start 2P', ui-monospace, monospace;
+  --font-body: ui-monospace, 'SF Mono', 'Cascadia Mono', Menlo, monospace;
+
+  /* Silkscreen is a bitmap face: it is designed for these exact sizes and goes
+     soft between them. Nudged up one step across the board — at 9px, uppercase
+     with letter-spacing, it was legible in theory and not in practice. */
+  --fs-nano: 10px;
+  --fs-micro: 11px;
+  --fs-small: 13px;
+  --fs-base: 15px;
+  --fs-lg: 18px;
+  --fs-xl: 24px;
+
+  /* ── Motion ──────────────────────────────────────────────────────────── */
+  /* --motion is set to 0 when the user (or the OS) asks for reduced motion.
+     Multiply *every* decorative duration/translate by it. */
+  --motion: 1;
+  --ease-spring: linear(
+    0, 0.006, 0.025 2.8%, 0.101 6.1%, 0.539 18.9%, 0.721 25.3%, 0.849 31.5%,
+    0.937 38.1%, 0.968 41.8%, 0.991 45.7%, 1.006 50.1%, 1.015 55%, 1.017 63.9%,
+    1.001
+  );
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-snap: cubic-bezier(0.2, 0.9, 0.2, 1.05);
+  --dur-fast: 140ms;
+  --dur: 260ms;
+  --dur-slow: 520ms;
+
+  /* ── Elevation ───────────────────────────────────────────────────────── */
+  --shadow-rest: 0 10px 26px -10px rgb(0 0 0 / 0.55), 0 2px 0 0 rgb(0 0 0 / 0.28);
+  --shadow-lift: 0 22px 46px -14px rgb(0 0 0 / 0.62), 0 3px 0 0 rgb(0 0 0 / 0.3);
+
+  /* Bloom halo tinted by the current key light. */
+  --halo: 0 0 var(--px5) color-mix(in oklab, var(--amb-glow) 38%, transparent);
+
+  --z-world: 0;
+  --z-app: 10;
+  --z-toast: 60;
+  --z-boot: 90;
+}
+
+/* The OS preference is the *default*; the in-app Motion toggle can override it
+   in either direction, which is why the token lives on :root and not in a
+   bare media query. */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --motion: 0;
+  }
+}
+
+:root[data-motion='off'] {
+  --motion: 0;
+}
+:root[data-motion='on'] {
+  --motion: 1;
+}

@@ -1,0 +1,19 @@
+{
+  "name": "The Useless but Aesthetic Dashboard",
+  "short_name": "Useless",
+  "description": "A cosy pixel world that tells you nothing you needed to know.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#18183a",
+  "theme_color": "#18183a",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -1,0 +1,1294 @@
+/* ============================================================================
+   widgets.css — the interior of each panel.
+
+   Everything here inherits from the ambient tokens, so no widget ever hard-codes
+   a colour that ought to change with the sky.
+   ========================================================================== */
+
+/* Screen-reader-only, but still focusable/announced. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ── Clock ───────────────────────────────────────────────────────────────── */
+
+.w-clock {
+  justify-content: center;
+}
+
+.clk {
+  display: grid;
+  gap: var(--px3);
+}
+
+.clk__time {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 2px;
+  font-family: var(--font-display);
+  font-size: clamp(28px, 5.2vw, 54px);
+  line-height: 1;
+  color: var(--amb-ink);
+  /* Two shadows: a hard pixel drop (the offset is a multiple of --px so it
+     stays on-grid) and a soft bloom in the current key light. */
+  text-shadow:
+    0 var(--px) 0 rgb(0 0 0 / 0.45),
+    0 0 calc(var(--px5)) color-mix(in oklab, var(--amb-glow) 55%, transparent);
+  font-variant-numeric: tabular-nums;
+}
+
+.clk__d {
+  display: inline-block;
+  min-width: 0.62em; /* stop the layout jittering as digits change width */
+  text-align: center;
+}
+
+/* Each digit's flip. Only the digits that actually changed get this class, so
+   the clock ticks rather than strobes. */
+.clk__d.is-flip {
+  animation: digitFlip 340ms var(--ease-spring);
+}
+
+@keyframes digitFlip {
+  0% {
+    transform: translateY(calc(-0.16em * var(--motion))) scale(1.08);
+    opacity: 0.25;
+    filter: blur(calc(2px * var(--motion)));
+  }
+  100% {
+    transform: none;
+    opacity: 1;
+    filter: none;
+  }
+}
+
+.clk__c {
+  transition: opacity 180ms linear;
+}
+.clk__c.is-dim {
+  opacity: 0.25;
+}
+
+/* The seconds are smaller and warmer — they're the least important number on a
+   clock and giving them equal weight makes the whole thing shout. They stay
+   tight against the colon; drifting away turns them into a separate object. */
+.clk__sec {
+  font-size: 0.5em;
+  margin-left: 0.06em;
+  color: var(--amb-glow);
+  opacity: 0.92;
+  text-shadow: 0 0 var(--px4) color-mix(in oklab, var(--amb-glow) 70%, transparent);
+}
+
+.clk__foot {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--px3);
+  flex-wrap: wrap;
+}
+
+.clk__day {
+  font-family: var(--font-ui);
+  font-size: var(--fs-lg);
+  color: var(--amb-ink);
+}
+
+.clk__date {
+  font-size: var(--fs-micro);
+  color: var(--amb-ink-soft);
+  margin-top: 2px;
+}
+
+.clk__meta {
+  display: grid;
+  gap: 2px;
+  justify-items: end;
+  text-align: right;
+  font-size: var(--fs-nano);
+  color: var(--amb-ink-soft);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.clk__utc {
+  color: var(--amb-accent);
+}
+
+/* ── Quote / dialogue ────────────────────────────────────────────────────── */
+
+.quote {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--px3);
+  align-items: start;
+}
+
+.npc__frame {
+  display: grid;
+  gap: var(--px);
+  justify-items: center;
+}
+
+.npc {
+  padding: var(--px);
+  background: color-mix(in oklab, var(--amb-mid) 55%, transparent);
+  box-shadow:
+    0 calc(-1 * var(--px)) 0 0 var(--glass-edge),
+    0 var(--px) 0 0 var(--glass-edge),
+    calc(-1 * var(--px)) 0 0 0 var(--glass-edge),
+    var(--px) 0 0 0 var(--glass-edge);
+  animation: floatY calc(4.4s / max(var(--motion), 0.0001)) ease-in-out infinite;
+}
+
+.npc canvas {
+  image-rendering: pixelated;
+  display: block;
+}
+
+.npc__name {
+  font-size: var(--fs-nano);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--amb-ink-soft);
+}
+
+/* The dialogue box. Pointer cursor + the arrow are the affordance; RPG players
+   read this instantly. */
+.dlg {
+  position: relative;
+  padding: var(--px3) var(--px4) var(--px5) var(--px3);
+  min-height: 118px;
+  cursor: pointer;
+  background: color-mix(in oklab, #0a0c1c 62%, transparent);
+  box-shadow:
+    0 calc(-1 * var(--px)) 0 0 var(--glass-edge),
+    0 var(--px) 0 0 var(--glass-edge),
+    calc(-1 * var(--px)) 0 0 0 var(--glass-edge),
+    var(--px) 0 0 0 var(--glass-edge),
+    inset 0 0 0 2px color-mix(in oklab, var(--amb-lift) 30%, transparent);
+  transition: opacity var(--dur) linear;
+}
+
+.dlg.is-fading {
+  opacity: 0.35;
+}
+
+.dlg__text {
+  font-family: var(--font-ui);
+  font-size: var(--fs-small);
+  line-height: 1.85;
+  color: var(--amb-ink);
+  /* Reserve the space the longest quote will need, so the panel doesn't resize
+     itself line by line as the typewriter runs. */
+  min-height: 4.2em;
+}
+
+.dlg__author {
+  margin-top: var(--px2);
+  font-size: var(--fs-nano);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--amb-glow);
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity var(--dur) var(--ease-out), transform var(--dur) var(--ease-out);
+}
+
+.dlg__author.is-ready {
+  opacity: 0.9;
+  transform: none;
+}
+
+/* The ▼. Appears only when the line is done — the universal "press to continue". */
+.dlg__arrow {
+  position: absolute;
+  right: var(--px3);
+  bottom: var(--px2);
+  font-size: var(--fs-small);
+  color: var(--amb-glow);
+  opacity: 0;
+}
+
+.dlg__arrow.is-ready {
+  opacity: 1;
+  animation: arrowBob calc(0.9s / max(var(--motion), 0.0001)) ease-in-out infinite;
+}
+
+@keyframes arrowBob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(calc(3px * var(--motion))); }
+}
+
+/* ── Weather ─────────────────────────────────────────────────────────────── */
+
+.wx__main {
+  display: flex;
+  align-items: center;
+  gap: var(--px3);
+}
+
+.wx__icon {
+  font-size: 44px;
+  line-height: 1;
+  filter: drop-shadow(0 0 14px color-mix(in oklab, var(--amb-glow) 60%, transparent));
+  animation: floatY calc(4.8s / max(var(--motion), 0.0001)) ease-in-out infinite;
+}
+
+.wx__temp {
+  font-family: var(--font-display);
+  font-size: var(--fs-xl);
+  color: var(--amb-ink);
+  text-shadow: 0 2px 0 rgb(0 0 0 / 0.4);
+  font-variant-numeric: tabular-nums;
+}
+
+.wx__label {
+  margin-top: 4px;
+  font-size: var(--fs-small);
+  color: var(--amb-ink);
+}
+
+.wx__place {
+  margin-top: 2px;
+  font-size: var(--fs-nano);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--amb-ink-soft);
+}
+
+.wx__stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--px2) var(--px3);
+  margin-top: var(--px3);
+}
+
+.wx__kinds {
+  display: flex;
+  gap: var(--px);
+  flex-wrap: wrap;
+}
+
+.wx__kind {
+  flex: 1;
+  min-width: 40px;
+  padding: var(--px2) 0;
+  font-size: var(--fs-base);
+}
+
+.wx__kind.is-active {
+  background: var(--amb-glow);
+  box-shadow:
+    0 calc(-1 * var(--px)) 0 0 var(--amb-glow),
+    0 var(--px) 0 0 var(--amb-glow),
+    calc(-1 * var(--px)) 0 0 0 var(--amb-glow),
+    var(--px) 0 0 0 var(--amb-glow),
+    var(--halo);
+}
+
+.wx__note {
+  margin-top: var(--px2);
+  font-size: var(--fs-nano);
+  color: var(--amb-ink-soft);
+  opacity: 0.75;
+}
+
+.wx__note.is-forced {
+  color: var(--amb-glow);
+  opacity: 1;
+}
+
+/* ── Music ───────────────────────────────────────────────────────────────── */
+
+.w-music {
+  overflow: hidden; /* the floating notes must not escape the panel */
+}
+
+.mus {
+  display: grid;
+  gap: var(--px3);
+}
+
+.viz {
+  width: 100%;
+  height: 72px;
+  image-rendering: pixelated;
+  background: color-mix(in oklab, #06070f 55%, transparent);
+  box-shadow: inset 0 0 0 2px color-mix(in oklab, var(--amb-mid) 60%, transparent);
+}
+
+.mus__now {
+  display: flex;
+  align-items: center;
+  gap: var(--px3);
+}
+
+.vinyl {
+  width: 56px;
+  height: 56px;
+  flex: none;
+  filter: drop-shadow(0 4px 10px rgb(0 0 0 / 0.5));
+}
+
+/* Only glows while it's actually playing. */
+.w-music.is-playing .vinyl {
+  filter:
+    drop-shadow(0 4px 10px rgb(0 0 0 / 0.5))
+    drop-shadow(0 0 12px color-mix(in oklab, var(--amb-glow) 50%, transparent));
+}
+
+.mus__meta {
+  flex: 1;
+  min-width: 0;
+}
+
+.mus__title {
+  font-family: var(--font-ui);
+  font-size: var(--fs-base);
+  color: var(--amb-ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mus__artist {
+  margin-top: 2px;
+  font-size: var(--fs-nano);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--amb-ink-soft);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mus__transport {
+  display: flex;
+  gap: var(--px);
+  flex: none;
+}
+
+.mus__bar {
+  display: flex;
+  align-items: center;
+  gap: var(--px2);
+}
+
+.mus__t {
+  font-family: var(--font-body);
+  font-size: var(--fs-nano);
+  color: var(--amb-ink-soft);
+  font-variant-numeric: tabular-nums;
+  min-width: 34px;
+}
+.mus__t:last-child {
+  text-align: right;
+}
+
+.mus__foot {
+  display: flex;
+  align-items: center;
+  gap: var(--px2);
+}
+
+.mus__vollabel {
+  font-size: var(--fs-small);
+}
+
+/* ── Range inputs (used by music + mood) ─────────────────────────────────────
+   Styled as a chunky pixel track with a square handle. `appearance: none` on
+   both the input and the thumb pseudo-element, then rebuilt from scratch.
+   -------------------------------------------------------------------------- */
+
+input[type='range'] {
+  -webkit-appearance: none;
+  appearance: none;
+  flex: 1;
+  height: var(--px3);
+  background: transparent;
+  cursor: pointer;
+}
+
+input[type='range']::-webkit-slider-runnable-track {
+  height: var(--px2);
+  background: color-mix(in oklab, #000 45%, transparent);
+  box-shadow: inset 0 0 0 2px color-mix(in oklab, var(--amb-mid) 70%, transparent);
+}
+
+input[type='range']::-moz-range-track {
+  height: var(--px2);
+  background: color-mix(in oklab, #000 45%, transparent);
+  box-shadow: inset 0 0 0 2px color-mix(in oklab, var(--amb-mid) 70%, transparent);
+}
+
+input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: var(--px3);
+  height: var(--px4);
+  margin-top: -4px;
+  background: var(--amb-glow);
+  box-shadow:
+    0 0 0 2px #0a0c1c,
+    var(--halo);
+  transition: transform var(--dur-fast) var(--ease-snap);
+}
+
+input[type='range']::-moz-range-thumb {
+  width: var(--px3);
+  height: var(--px4);
+  border: 0;
+  border-radius: 0;
+  background: var(--amb-glow);
+  box-shadow: 0 0 0 2px #0a0c1c, var(--halo);
+}
+
+input[type='range']:hover::-webkit-slider-thumb {
+  transform: scaleY(1.15);
+}
+input[type='range']:active::-webkit-slider-thumb {
+  transform: scaleY(0.9);
+}
+
+/* Floating notes. Absolutely positioned inside .w-music, which is the reason
+   that panel has `overflow: hidden` and `position: relative` (from .panel). */
+.mus__note {
+  position: absolute;
+  bottom: 40px;
+  font-size: 18px;
+  color: var(--amb-glow);
+  pointer-events: none;
+  text-shadow: 0 0 10px color-mix(in oklab, var(--amb-glow) 70%, transparent);
+  animation: noteRise var(--dur, 3s) var(--ease-out) forwards;
+}
+
+@keyframes noteRise {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0) rotate(0deg) scale(0.6);
+  }
+  15% {
+    opacity: 0.95;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--drift), -120px) rotate(22deg) scale(1.1);
+  }
+}
+
+/* ── ISS ─────────────────────────────────────────────────────────────────── */
+
+.iss {
+  display: grid;
+  gap: var(--px3);
+}
+
+.iss__head {
+  display: flex;
+  align-items: center;
+  gap: var(--px3);
+}
+
+.iss__ico {
+  font-size: 30px;
+  line-height: 1;
+  animation: floatY calc(6s / max(var(--motion), 0.0001)) ease-in-out infinite;
+}
+
+.iss__state {
+  font-family: var(--font-ui);
+  font-size: var(--fs-small);
+  color: var(--amb-ink-soft);
+}
+
+/* When it's genuinely visible above you, the panel says so loudly. This is the
+   only place on the dashboard that ever shouts, and it has earned it. */
+.iss__state[data-kind='visible'] {
+  color: var(--amb-glow);
+  letter-spacing: 0.1em;
+  text-shadow: 0 0 var(--px4) color-mix(in oklab, var(--amb-glow) 60%, transparent);
+  animation: sparkPulse calc(2s / max(var(--motion), 0.0001)) ease-in-out infinite;
+}
+
+.iss__state[data-kind='up'] {
+  color: var(--amb-accent);
+}
+
+.iss__dist {
+  margin-top: 2px;
+  font-family: var(--font-display);
+  font-size: var(--fs-base);
+  color: var(--amb-ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.iss__sky {
+  width: 100%;
+  height: 56px;
+  image-rendering: pixelated;
+  background: color-mix(in oklab, #06070f 45%, transparent);
+  box-shadow: inset 0 0 0 2px color-mix(in oklab, var(--amb-mid) 55%, transparent);
+}
+
+.iss__grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--px2) var(--px3);
+}
+
+.iss__note {
+  font-size: var(--fs-nano);
+  color: var(--amb-ink-soft);
+  opacity: 0.8;
+  min-height: 2.4em;
+}
+
+@media (max-width: 640px) {
+  .iss__grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* ── Ambience mixer ──────────────────────────────────────────────────────── */
+
+.amb__list {
+  display: grid;
+  gap: var(--px2);
+}
+
+/* Header on one row, slider on the next, spanning the full width. Nothing here
+   can be squeezed by a narrow panel. */
+.amb__row {
+  display: grid;
+  grid-template-columns: 20px 1fr auto;
+  align-items: center;
+  gap: 2px var(--px2);
+  padding: var(--px) 0;
+  opacity: 0.55;
+  transition: opacity var(--dur) linear;
+}
+
+/* A bed that's actually playing lights up. You can see what you're hearing. */
+.amb__row.is-on {
+  opacity: 1;
+}
+
+.amb__ico {
+  font-size: var(--fs-base);
+  line-height: 1;
+}
+
+.amb__label {
+  font-family: var(--font-ui);
+  font-size: var(--fs-micro);
+  color: var(--amb-ink);
+  white-space: nowrap;
+}
+
+.amb__slider {
+  grid-column: 1 / -1; /* the full width of the row */
+  width: 100%;
+}
+
+.amb__level {
+  font-family: var(--font-body);
+  font-size: var(--fs-nano);
+  color: var(--amb-ink-soft);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.amb__row.is-on .amb__level {
+  color: var(--amb-glow);
+}
+
+.amb__presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--px);
+}
+
+.amb__presets .btn {
+  flex: 1;
+  min-width: 88px;
+  font-size: var(--fs-nano);
+}
+
+.amb__note {
+  margin-top: var(--px2);
+  font-size: var(--fs-nano);
+  color: var(--amb-ink-soft);
+  opacity: 0.75;
+}
+
+/* ── Pet ─────────────────────────────────────────────────────────────────── */
+
+.pet {
+  display: grid;
+  gap: var(--px2);
+  justify-items: center;
+}
+
+.pet__stage {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  padding: var(--px2);
+  background: radial-gradient(
+    70% 60% at 50% 78%,
+    color-mix(in oklab, var(--amb-glow) 14%, transparent),
+    transparent 70%
+  );
+}
+
+.pet__cv {
+  image-rendering: pixelated;
+  width: 96px;
+  height: 72px;
+  cursor: pointer;
+  transition: transform var(--dur-fast) var(--ease-snap);
+}
+
+.pet__cv:active {
+  transform: scale(0.94);
+}
+
+.pet__name {
+  font-family: var(--font-ui);
+  font-size: var(--fs-base);
+  color: var(--amb-ink);
+}
+
+.pet__status {
+  font-size: var(--fs-nano);
+  color: var(--amb-ink-soft);
+  text-align: center;
+}
+
+/* ── Coffee ──────────────────────────────────────────────────────────────── */
+
+.cof {
+  display: grid;
+  gap: var(--px2);
+  justify-items: center;
+}
+
+.cof__cv {
+  image-rendering: pixelated;
+  width: 64px;
+  height: 64px;
+  cursor: pointer;
+  transition: transform var(--dur-fast) var(--ease-snap);
+}
+.cof__cv:active {
+  transform: translateY(2px) scale(0.96);
+}
+
+.cof__read {
+  display: flex;
+  align-items: baseline;
+  gap: var(--px2);
+}
+
+.cof__count {
+  font-family: var(--font-display);
+  font-size: var(--fs-xl);
+  color: var(--amb-glow);
+  text-shadow: 0 0 16px color-mix(in oklab, var(--amb-glow) 55%, transparent);
+}
+
+.cof__verdict {
+  font-size: var(--fs-nano);
+  color: var(--amb-ink-soft);
+  text-align: center;
+}
+
+.is-pop {
+  animation: pop 380ms var(--ease-spring);
+}
+
+@keyframes pop {
+  0% { transform: scale(1); }
+  35% { transform: scale(calc(1 + 0.35 * var(--motion))); }
+  100% { transform: scale(1); }
+}
+
+/* ── Mood ────────────────────────────────────────────────────────────────── */
+
+.mood {
+  display: grid;
+  gap: var(--px3);
+  justify-items: center;
+}
+
+.mood__read {
+  display: grid;
+  justify-items: center;
+  gap: var(--px);
+}
+
+/* The face is a 40×40 buffer blown up 1.6× with hard edges — same trick as the
+   world canvas, so it sits in the same visual language as everything else. */
+.mood__cv {
+  width: 64px;
+  height: 64px;
+  image-rendering: pixelated;
+  /* The glow strength tracks the mood value — a happy panel literally glows. */
+  filter: drop-shadow(
+    0 0 calc(4px + 16px * var(--mood, 0.5))
+    color-mix(in oklab, var(--amb-glow) calc(var(--mood, 0.5) * 90%), transparent)
+  );
+  transition: filter var(--dur-slow) linear;
+}
+
+.mood__word {
+  font-family: var(--font-ui);
+  font-size: var(--fs-small);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--amb-ink);
+}
+
+.mood__slider {
+  width: 100%;
+}
+
+.mood__note {
+  font-size: var(--fs-nano);
+  color: var(--amb-ink-soft);
+  text-align: center;
+  opacity: 0.7;
+}
+
+/* ── Fortune ─────────────────────────────────────────────────────────────── */
+
+.fort__text {
+  font-family: var(--font-ui);
+  font-size: var(--fs-small);
+  line-height: 1.8;
+  color: var(--amb-ink);
+  min-height: 5.4em;
+}
+
+.fort__lucky {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--px2);
+}
+
+.fort__num {
+  font-family: var(--font-display);
+  font-size: var(--fs-xl);
+  color: var(--amb-accent);
+  text-shadow: 0 0 18px color-mix(in oklab, var(--amb-accent) 60%, transparent);
+  font-variant-numeric: tabular-nums;
+}
+
+.fort__num.is-land {
+  animation: pop 420ms var(--ease-spring);
+}
+
+.fort__note {
+  margin-top: var(--px2);
+  font-size: var(--fs-nano);
+  color: var(--amb-ink-soft);
+  opacity: 0.7;
+}
+
+/* ── Idle / coins ────────────────────────────────────────────────────────── */
+
+.w-idle {
+  overflow: hidden; /* the coin rain must stay inside the panel */
+}
+
+.idle__top {
+  display: flex;
+  align-items: center;
+  gap: var(--px2);
+}
+
+.idle__ico {
+  font-size: var(--fs-lg);
+  animation: floatY calc(3.6s / max(var(--motion), 0.0001)) ease-in-out infinite;
+}
+
+.idle__coins {
+  font-family: var(--font-display);
+  font-size: var(--fs-xl);
+  color: var(--amb-glow);
+  text-shadow: 0 0 18px color-mix(in oklab, var(--amb-glow) 50%, transparent);
+  font-variant-numeric: tabular-nums;
+}
+
+.idle__rate,
+.idle__verdict {
+  margin-top: var(--px);
+  font-size: var(--fs-nano);
+  color: var(--amb-ink-soft);
+}
+
+.idle__verdict {
+  margin-top: var(--px2);
+  color: var(--amb-accent);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.coin {
+  position: absolute;
+  top: -18px;
+  font-size: 16px;
+  pointer-events: none;
+  animation: coinFall var(--dur, 1.2s) cubic-bezier(0.4, 0, 0.7, 1) forwards;
+}
+
+@keyframes coinFall {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0) rotate(0);
+  }
+  12% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--drift), 190px) rotate(var(--spin));
+  }
+}
+
+/* ── Inventory ───────────────────────────────────────────────────────────── */
+
+.inv__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(48px, 1fr));
+  gap: var(--px2);
+}
+
+.inv__slot {
+  position: relative;
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  background: color-mix(in oklab, #06070f 45%, transparent);
+  box-shadow:
+    inset 0 0 0 2px color-mix(in oklab, var(--amb-mid) 55%, transparent),
+    inset 0 2px 0 0 rgb(255 255 255 / 0.05);
+  transition: transform var(--dur-fast) var(--ease-snap), box-shadow var(--dur-fast) linear;
+}
+
+.inv__slot.is-full {
+  cursor: help;
+  background: color-mix(in oklab, var(--amb-mid) 30%, transparent);
+}
+
+.inv__slot.is-full:hover,
+.inv__slot.is-full:focus-visible {
+  transform: translateY(calc(-3px * var(--motion)));
+  box-shadow:
+    inset 0 0 0 2px var(--amb-glow),
+    var(--halo);
+}
+
+.inv__sprite {
+  width: 68%;
+  height: auto;
+  image-rendering: pixelated;
+  user-select: none;
+  filter: drop-shadow(0 2px 0 rgb(0 0 0 / 0.45));
+  transition: transform var(--dur) var(--ease-spring);
+}
+
+.inv__slot.is-full:hover .inv__sprite,
+.inv__slot.is-full:focus-visible .inv__sprite {
+  transform: translateY(calc(-2px * var(--motion))) scale(1.08);
+}
+
+.inv__slot.is-new {
+  animation: slotPop 620ms var(--ease-spring);
+}
+
+@keyframes slotPop {
+  0% {
+    transform: scale(0.3) rotate(-12deg);
+    box-shadow: inset 0 0 0 2px var(--amb-glow), 0 0 40px var(--amb-glow);
+  }
+  100% {
+    transform: none;
+  }
+}
+
+.inv__foot {
+  display: flex;
+  align-items: baseline;
+  gap: var(--px2);
+  margin-top: var(--px3);
+}
+
+.inv__count {
+  flex: none;
+  font-family: var(--font-ui);
+  font-size: var(--fs-micro);
+  color: var(--amb-glow);
+}
+
+.inv__blurb {
+  font-size: var(--fs-nano);
+  color: var(--amb-ink-soft);
+  min-height: 2.4em;
+}
+
+/* ── Achievements ────────────────────────────────────────────────────────── */
+
+.ach__count {
+  margin: var(--px2) 0 var(--px3);
+  font-size: var(--fs-nano);
+  color: var(--amb-ink-soft);
+}
+
+.ach__list {
+  display: grid;
+  gap: 2px;
+  /* Scrolls inside the panel rather than stretching it to 15 rows tall. */
+  max-height: 190px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in oklab, var(--amb-lift) 70%, transparent) transparent;
+}
+
+.ach__row {
+  display: flex;
+  align-items: center;
+  gap: var(--px2);
+  padding: var(--px) var(--px2);
+  opacity: 0.45;
+  transition: opacity var(--dur) linear, background-color var(--dur) linear;
+}
+
+.ach__row.is-got {
+  opacity: 1;
+  background: color-mix(in oklab, var(--amb-glow) 10%, transparent);
+}
+
+.ach__ico {
+  font-size: var(--fs-base);
+  flex: none;
+}
+
+.ach__body {
+  display: grid;
+  min-width: 0;
+}
+
+.ach__title {
+  font-family: var(--font-ui);
+  font-size: var(--fs-micro);
+  color: var(--amb-ink);
+}
+
+.ach__hint {
+  font-size: var(--fs-nano);
+  color: var(--amb-ink-soft);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ach__row.is-got .ach__hint {
+  color: var(--amb-glow);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+/* ── Facts ───────────────────────────────────────────────────────────────── */
+
+.fact {
+  position: relative;
+}
+
+.fact__mark {
+  position: absolute;
+  top: -8px;
+  left: -2px;
+  font-size: 36px;
+  line-height: 1;
+  color: var(--amb-glow);
+  opacity: 0.22;
+}
+
+.fact__text {
+  position: relative;
+  font-family: var(--font-ui);
+  font-size: var(--fs-small);
+  line-height: 1.8;
+  color: var(--amb-ink);
+  min-height: 7em;
+}
+
+.fact__text.is-in {
+  animation: factIn 460ms var(--ease-out);
+}
+
+@keyframes factIn {
+  from {
+    opacity: 0;
+    transform: translateY(calc(6px * var(--motion)));
+    filter: blur(calc(3px * var(--motion)));
+  }
+}
+
+.fact__note {
+  font-size: var(--fs-nano);
+  color: var(--amb-accent);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  opacity: 0.8;
+}
+
+/* ── Mobile ──────────────────────────────────────────────────────────────── */
+
+@media (max-width: 640px) {
+  .quote {
+    grid-template-columns: 1fr;
+    justify-items: center;
+  }
+
+  .wx__stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .clk__foot {
+    justify-content: center;
+    text-align: center;
+  }
+
+  .clk__meta {
+    justify-items: center;
+    text-align: center;
+  }
+}
+
+/* ── Idle Hands ─────────────────────────────────────────────────────────────
+   Four things to do, none of which achieve anything.
+   -------------------------------------------------------------------------- */
+
+.play {
+  display: grid;
+  gap: var(--px3);
+}
+
+.play__modes {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--px2);
+}
+
+.play__mode {
+  display: flex;
+  align-items: center;
+  gap: var(--px2);
+  padding: var(--px2) var(--px3);
+  font-family: var(--font-ui);
+  font-size: var(--fs-micro);
+  color: var(--amb-ink-soft);
+  background: color-mix(in oklab, var(--amb-deep) 45%, transparent);
+  box-shadow: inset 0 0 0 2px color-mix(in oklab, var(--amb-mid) 50%, transparent);
+  cursor: pointer;
+  transition: color var(--dur) linear, box-shadow var(--dur) linear, background var(--dur) linear;
+}
+
+.play__mode:hover {
+  color: var(--amb-ink);
+  box-shadow: inset 0 0 0 2px color-mix(in oklab, var(--amb-glow) 55%, transparent);
+}
+
+/* The active mode glows, because the world is now listening to your clicks and
+   you need to be able to tell at a glance that it is. */
+.play__mode.is-on {
+  color: var(--amb-ink);
+  background: color-mix(in oklab, var(--amb-glow) 20%, transparent);
+  box-shadow: inset 0 0 0 2px var(--amb-glow);
+}
+
+.play__ico {
+  font-size: var(--fs-small);
+  line-height: 1;
+}
+
+.play__label {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.play__hint {
+  font-family: var(--font-body);
+  font-size: var(--fs-micro);
+  color: var(--amb-ink-soft);
+  min-height: 2.4em;
+}
+
+.play__tally {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--px2) var(--px3);
+}
+
+.play__last {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: space-between;
+  gap: var(--px2);
+  padding-top: var(--px2);
+  border-top: 2px solid color-mix(in oklab, var(--amb-mid) 40%, transparent);
+}
+
+.play__last-k {
+  font-family: var(--font-ui);
+  font-size: var(--fs-nano);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--amb-ink-soft);
+}
+
+.play__last-v {
+  font-family: var(--font-body);
+  font-size: var(--fs-micro);
+  color: var(--amb-ink);
+}
+
+/* ── Your sky, as a list ──────────────────────────────────────────────────── */
+
+.play__sky {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 2px;
+  max-height: 104px; /* about five. After that it scrolls; a sky can get busy. */
+  overflow-y: auto;
+  padding-top: var(--px2);
+  border-top: 2px solid color-mix(in oklab, var(--amb-mid) 40%, transparent);
+}
+
+.sky__row {
+  display: flex;
+  align-items: center;
+  gap: var(--px2);
+}
+
+.sky__name {
+  flex: 1;
+  min-width: 0;
+  padding: 2px var(--px2);
+  text-align: left;
+  font-family: var(--font-body);
+  font-size: var(--fs-micro);
+  color: var(--amb-ink);
+  background: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: text; /* it becomes a text field when you click it. Say so. */
+  transition: color var(--dur) linear, background var(--dur) linear;
+}
+
+.sky__name:hover {
+  background: color-mix(in oklab, var(--amb-lift) 22%, transparent);
+}
+
+/* The ones you never named. Still yours — just quieter about it. */
+.sky__name.is-blank {
+  color: var(--amb-ink-soft);
+  font-style: italic;
+  opacity: 0.7;
+}
+
+.sky__forget {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  font-family: var(--font-ui);
+  font-size: var(--fs-nano);
+  line-height: 1;
+  color: var(--amb-ink-soft);
+  background: none;
+  cursor: pointer;
+  opacity: 0.45;
+  transition: opacity var(--dur) linear, color var(--dur) linear;
+}
+
+.sky__forget:hover {
+  opacity: 1;
+  color: var(--amb-ink);
+  background: color-mix(in oklab, var(--amb-lift) 30%, transparent);
+}
+
+.sky__field {
+  width: 100%;
+  padding: 2px var(--px2);
+  font-family: var(--font-body);
+  font-size: var(--fs-micro);
+  color: var(--amb-ink);
+  background: color-mix(in oklab, var(--amb-deep) 60%, transparent);
+  box-shadow: inset 0 0 0 2px var(--amb-glow);
+  outline: none;
+}
+
+.sky__field::placeholder {
+  color: var(--amb-ink-soft);
+  opacity: 0.6;
+}
+
+/* Quiet until you touch it. Erasing a year of sky should not be the loudest
+   thing in the panel. */
+.play__wipe {
+  grid-column: 1 / -1;
+  padding: var(--px2);
+  font-family: var(--font-ui);
+  font-size: var(--fs-nano);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--amb-ink-soft);
+  background: none;
+  box-shadow: inset 0 0 0 2px color-mix(in oklab, var(--amb-mid) 50%, transparent);
+  cursor: pointer;
+  transition: color var(--dur) linear, box-shadow var(--dur) linear, background var(--dur) linear;
+}
+
+.play__wipe:hover {
+  color: var(--amb-ink);
+  box-shadow: inset 0 0 0 2px color-mix(in oklab, var(--amb-lift) 70%, transparent);
+}
+
+/* Armed. Same glow the active mode uses — in this world, glowing means "the
+   next click does something". */
+.play__wipe.is-armed {
+  color: var(--amb-ink);
+  background: color-mix(in oklab, var(--amb-glow) 20%, transparent);
+  box-shadow: inset 0 0 0 2px var(--amb-glow);
+}
+
+/* ── The cursor IS the affordance ───────────────────────────────────────────
+   There is no crosshair, no HUD, no tutorial overlay. The pointer changes and
+   the world is live. That's the entire tutorial.
+   -------------------------------------------------------------------------- */
+
+:root[data-play] .world,
+:root[data-play] .app {
+  cursor: crosshair;
+}
+
+/* …but never over a panel. You are not fishing in the volume slider. */
+:root[data-play] .panel,
+:root[data-play] .topbar,
+:root[data-play] .footer {
+  cursor: auto;
+}

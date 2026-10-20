@@ -1,0 +1,453 @@
+/* ============================================================================
+   overlays.css — Zen mode and the command palette.
+
+   Both are full-screen layers that sit ON TOP of the app but BELOW nothing, and
+   both have to get out of the way completely when they're off — `visibility:
+   hidden` as well as `opacity: 0`, or an invisible overlay keeps eating clicks.
+   ========================================================================== */
+
+:root {
+  --z-zen: 70;
+  --z-cmd: 80;
+}
+
+/* ── Zen ─────────────────────────────────────────────────────────────────────
+   The widgets don't get `display: none` — they FADE and scale away, and the
+   world behind them is revealed. That reveal is the whole feeling of the mode:
+   you're not opening a screen, you're clearing one.
+   -------------------------------------------------------------------------- */
+
+.app {
+  transition:
+    opacity 900ms var(--ease-out),
+    filter 900ms var(--ease-out),
+    transform 900ms var(--ease-out);
+}
+
+:root[data-zen='on'] .grid,
+:root[data-zen='on'] .footer {
+  opacity: 0;
+  transform: scale(0.97) translateY(calc(10px * var(--motion)));
+  filter: blur(calc(8px * var(--motion)));
+  pointer-events: none;
+  transition:
+    opacity 900ms var(--ease-out),
+    transform 900ms var(--ease-out),
+    filter 900ms var(--ease-out);
+}
+
+/* The topbar stays, but recedes — you need the way out to remain visible. */
+:root[data-zen='on'] .topbar {
+  opacity: 0.28;
+  transition: opacity 900ms var(--ease-out);
+}
+:root[data-zen='on'] .topbar:hover,
+:root[data-zen='on'] .topbar:focus-within {
+  opacity: 1;
+}
+
+/* The world itself gets quieter: the scanlines and vignette pull back so the
+   scene is as clean as it can be while you look at it for four minutes. */
+:root[data-zen='on'] .world__scanlines {
+  opacity: 0;
+  transition: opacity 900ms linear;
+}
+:root[data-zen='on'] .world__vignette {
+  opacity: 0.5;
+  transition: opacity 900ms linear;
+}
+
+.zen {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-zen);
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: var(--px5);
+
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 800ms var(--ease-out), visibility 800ms;
+}
+
+.zen[data-on='true'] {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+.zen__stage {
+  position: relative;
+  display: grid;
+  place-items: center;
+}
+
+.zen__ring {
+  width: 260px;
+  height: 260px;
+  max-width: 70vmin;
+  max-height: 70vmin;
+  image-rendering: pixelated;
+}
+
+.zen__text {
+  position: absolute;
+  display: grid;
+  justify-items: center;
+  gap: var(--px2);
+  text-align: center;
+  pointer-events: none;
+}
+
+.zen__label {
+  font-family: var(--font-ui);
+  font-size: var(--fs-base);
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--amb-ink);
+  text-shadow: 0 0 var(--px5) color-mix(in oklab, var(--amb-glow) 60%, transparent);
+}
+
+.zen__count {
+  font-family: var(--font-display);
+  font-size: 30px;
+  color: var(--amb-glow);
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 0 var(--px6) color-mix(in oklab, var(--amb-glow) 70%, transparent);
+}
+
+.zen__cycles {
+  font-family: var(--font-ui);
+  font-size: var(--fs-micro);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--amb-ink-soft);
+  min-height: 1.4em;
+}
+
+.zen__exit {
+  padding: var(--px2) var(--px4);
+  font-family: var(--font-ui);
+  font-size: var(--fs-micro);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--amb-ink-soft);
+  background: color-mix(in oklab, var(--amb-deep) 60%, transparent);
+  backdrop-filter: blur(8px);
+  box-shadow: inset 0 0 0 2px color-mix(in oklab, var(--amb-mid) 60%, transparent);
+  transition: color var(--dur) linear, box-shadow var(--dur) linear;
+}
+
+.zen__exit:hover {
+  color: var(--amb-ink);
+  box-shadow: inset 0 0 0 2px var(--amb-glow);
+}
+
+/* ── Command palette ─────────────────────────────────────────────────────── */
+
+.cmd {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-cmd);
+  display: grid;
+  justify-items: center;
+  align-content: start;
+  padding-top: 14vh;
+
+  background: color-mix(in oklab, #05060f 62%, transparent);
+  backdrop-filter: blur(6px);
+
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 180ms var(--ease-out), visibility 180ms;
+}
+
+.cmd[data-on='true'] {
+  opacity: 1;
+  visibility: visible;
+}
+
+.cmd__panel {
+  width: min(560px, calc(100vw - var(--px8)));
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur)) saturate(1.3);
+  box-shadow:
+    0 calc(-1 * var(--px)) 0 0 var(--glass-edge),
+    0 var(--px) 0 0 var(--glass-edge),
+    calc(-1 * var(--px)) 0 0 0 var(--glass-edge),
+    var(--px) 0 0 0 var(--glass-edge),
+    inset 0 var(--px) 0 0 var(--glass-hi),
+    var(--shadow-lift);
+
+  transform: translateY(-10px) scale(0.98);
+  transition: transform 220ms var(--ease-spring);
+}
+
+.cmd[data-on='true'] .cmd__panel {
+  transform: none;
+}
+
+.cmd__bar {
+  display: flex;
+  align-items: center;
+  gap: var(--px2);
+  padding: var(--px3);
+  border-bottom: 2px solid color-mix(in oklab, var(--amb-mid) 60%, transparent);
+}
+
+.cmd__prompt {
+  font-family: var(--font-display);
+  font-size: var(--fs-small);
+  color: var(--amb-glow);
+}
+
+.cmd__input {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-ui);
+  font-size: var(--fs-base);
+  color: var(--amb-ink);
+  background: none;
+  border: 0;
+  outline: none;
+}
+
+.cmd__input::placeholder {
+  color: var(--amb-ink-soft);
+  opacity: 0.55;
+}
+
+.cmd__list {
+  list-style: none;
+  max-height: 44vh;
+  overflow-y: auto;
+  padding: var(--px);
+  scrollbar-width: thin;
+}
+
+.cmd__item {
+  display: flex;
+  align-items: center;
+  gap: var(--px2);
+  padding: var(--px2) var(--px2);
+  cursor: pointer;
+  color: var(--amb-ink);
+}
+
+/* No transition on the active state: at the speed you arrow through a palette,
+   a 150ms fade means the highlight is permanently mid-way between two rows. */
+.cmd__item.is-active {
+  background: color-mix(in oklab, var(--amb-glow) 18%, transparent);
+  box-shadow: inset 3px 0 0 0 var(--amb-glow);
+}
+
+.cmd__ico {
+  width: 20px;
+  flex: none;
+  text-align: center;
+  font-size: var(--fs-base);
+}
+
+.cmd__label {
+  font-family: var(--font-ui);
+  font-size: var(--fs-small);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cmd__hint {
+  margin-left: auto;
+  padding-left: var(--px3);
+  flex: none;
+  font-size: var(--fs-nano);
+  color: var(--amb-ink-soft);
+  opacity: 0.75;
+  white-space: nowrap;
+}
+
+.cmd__empty {
+  padding: var(--px4);
+  text-align: center;
+  font-size: var(--fs-micro);
+  color: var(--amb-ink-soft);
+}
+
+.cmd__foot {
+  display: flex;
+  gap: var(--px3);
+  padding: var(--px2) var(--px3);
+  border-top: 2px solid color-mix(in oklab, var(--amb-mid) 50%, transparent);
+  font-size: var(--fs-nano);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--amb-ink-soft);
+  opacity: 0.7;
+}
+
+/* ── Topbar additions ────────────────────────────────────────────────────── */
+
+.tbtn__emoji {
+  font-size: var(--fs-small);
+  line-height: 1;
+}
+
+.tbtn__kbd {
+  font-family: var(--font-body);
+  font-size: var(--fs-nano);
+  letter-spacing: 0.06em;
+  opacity: 0.8;
+}
+
+.tbtn--ghost {
+  background: transparent;
+  box-shadow: inset 0 0 0 2px color-mix(in oklab, var(--amb-mid) 55%, transparent);
+}
+
+@media (max-width: 900px) {
+  /* The palette is a keyboard feature. Don't advertise a chord on a phone. */
+  .tbtn--ghost {
+    display: none;
+  }
+  /* Topbar buttons lose their labels before they lose their icons. */
+  .topbar__tools .tbtn__txt {
+    display: none;
+  }
+}
+
+/* ── Play mode reveals the world ────────────────────────────────────────────
+   The four games happen OUT THERE — a float on the lake, a stone skipping across
+   it, stars being joined, a leaf falling past your cursor. And all of it was
+   behind fifteen panes of frosted glass.
+
+   The tell was there the whole time and I walked past it: to screenshot the
+   fishing float, I had to set the grid to `opacity: 0` first. If you have to
+   hide the UI to see the feature, the feature cannot be seen.
+
+   Zen already solved this exact problem, so this is Zen's move: the panels clear
+   out of the way. The difference is that ONE panel stays — Idle Hands itself,
+   dropped into the corner as a dock, because you still need to change what
+   you're doing and see what you caught.
+   -------------------------------------------------------------------------- */
+
+:root[data-play] .grid > .panel:not(.w-play),
+:root[data-play] .footer {
+  /* `animation: none` is load-bearing, and it cost me a screenshot to find.
+
+     Every panel runs `panelIn` with `animation-fill-mode: both`, and that
+     animation's last keyframe is `opacity: 1`. A filled animation's value beats
+     a normal declaration in the cascade — so `opacity: 0` below was being
+     silently overruled and the panels just sat there, fully lit, in front of the
+     lake. Zen gets away without this only because it fades the `.grid` CONTAINER,
+     which has no animation of its own; we can't, because a `position: fixed`
+     child still inherits its parent's opacity, and the dock has to stay visible. */
+  animation: none;
+  opacity: 0;
+  transform: scale(0.98) translateY(calc(6px * var(--motion)));
+  filter: blur(calc(6px * var(--motion)));
+  pointer-events: none; /* so a click lands on the WORLD, not on a ghost */
+  transition:
+    opacity 550ms var(--ease-out),
+    transform 550ms var(--ease-out),
+    filter 550ms var(--ease-out);
+}
+
+/* The topbar recedes but stays reachable — it's the way back out. */
+:root[data-play] .topbar {
+  opacity: 0.35;
+  transition: opacity 550ms var(--ease-out);
+}
+:root[data-play] .topbar:hover,
+:root[data-play] .topbar:focus-within {
+  opacity: 1;
+}
+
+/* ── Clear glass ─────────────────────────────────────────────────────────────
+   The dashboard stops being a wall and becomes a window.
+
+   Zen and Idle Hands both answer "I want to see the world" by taking the panels
+   away. This answers the other version of that wish — the one where you want to
+   see the world AND keep reading the panel — and it is the only one of the three
+   you can use while actually using the dashboard.
+
+   `--glass-bg` and `--glass-blur` are declared on :root and CONSUMED by .panel
+   through var(), so redefining them on the panel itself is the entire mechanism.
+   No new background rule, no !important, no second source of truth for what a
+   panel's glass is made of.
+   -------------------------------------------------------------------------- */
+
+:root[data-glass] .panel {
+  --glass-bg: color-mix(in oklab, var(--amb-deep) 18%, transparent);
+  --glass-blur: 2px;
+  --frame: color-mix(in oklab, var(--amb-mid) 30%, transparent);
+
+  /* THE PRICE OF GOING BELOW THE LEGIBILITY FLOOR.
+
+     tokens.css puts the frosting at 86% and says why: under that, the grass
+     moving behind the glass changes the contrast beneath the text from one
+     second to the next, and copy that is readable now and not in a moment is
+     worse than copy you cannot read at all. We are at 18%.
+
+     So the text stops relying on the panel behind it and carries its own
+     darkness. A 2px hard shadow — no blur, because a blurred shadow in a pixel
+     world is a smudge — holds every word against a noon sky and a night lake
+     equally, which is exactly the swing the floor was protecting us from. */
+  text-shadow: 0 2px 0 color-mix(in oklab, #000 62%, transparent);
+}
+
+/* The one you reach for comes back. Frosted glass under the cursor, clear glass
+   everywhere else — so the dashboard is never actually unusable, it is just out
+   of the way until it is wanted. */
+:root[data-glass] .panel:hover,
+:root[data-glass] .panel:focus-within {
+  --glass-bg: color-mix(in oklab, var(--amb-deep) 92%, transparent);
+  --glass-blur: 18px;
+  --frame: var(--glass-edge);
+  text-shadow: none;
+}
+
+/* Zen is louder than this and takes it back over: there is no glass in Zen,
+   because there are no panels in Zen. */
+:root[data-zen][data-glass] .panel {
+  text-shadow: none;
+}
+
+/* ── The dock ────────────────────────────────────────────────────────────── */
+
+.panel.w-play {
+  transition:
+    position 0ms,
+    max-width 450ms var(--ease-spring),
+    transform 450ms var(--ease-spring);
+}
+
+:root[data-play] .panel.w-play {
+  position: fixed;
+  z-index: 60; /* over the world, under Zen and the palette */
+  left: var(--px5);
+  bottom: var(--px5);
+  width: min(340px, calc(100vw - var(--px8)));
+
+  /* It must not bob. You cannot reliably hit a button that is drifting, which is
+     the same reason the Ambience sliders don't float either. */
+  animation: none;
+  transform: none;
+}
+
+/* The tally stays two columns in the dock. I tried four — "CONSTELLATIONS" does
+   not fit in 85px and wrapped onto two lines, which is how a quiet scoreboard
+   turns into a wall of text you have to read. */
+:root[data-play] .panel.w-play .play__tally {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+@media (max-width: 720px) {
+  :root[data-play] .panel.w-play {
+    left: var(--px3);
+    right: var(--px3);
+    bottom: var(--px3);
+    width: auto;
+  }
+}

@@ -1,0 +1,487 @@
+/* ============================================================================
+   panels.css — the pixel-glass component kit: the frame, the grid, the topbar,
+   buttons, dividers, meters. Everything a widget is built out of.
+   ========================================================================== */
+
+/* ── The frame ───────────────────────────────────────────────────────────────
+   A real pixel-art frame has *notched* corners: the border ring stops short so
+   the corner pixel is cut away. You cannot get that from `border` (it mitres)
+   or `border-radius` (it curves). Four zero-spread box-shadows, one per side,
+   leave the corners empty — which is exactly the notch. Everything else is
+   stacked on top of that one trick.
+   ------------------------------------------------------------------------- */
+
+.panel {
+  --frame: var(--glass-edge);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  padding: var(--px4);
+  isolation: isolate;
+
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur)) saturate(1.3);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(1.3);
+
+  box-shadow:
+    /* the notched pixel ring */
+    0 calc(-1 * var(--px)) 0 0 var(--frame),
+    0 var(--px) 0 0 var(--frame),
+    calc(-1 * var(--px)) 0 0 0 var(--frame),
+    var(--px) 0 0 0 var(--frame),
+    /* bevel: light from above, shadow below — reads as extruded metal */
+    inset 0 var(--px) 0 0 var(--glass-hi),
+    inset 0 calc(-1 * var(--px)) 0 0 var(--glass-lo),
+    /* ambient contact shadow */ var(--shadow-rest);
+
+  transition:
+    transform var(--dur) var(--ease-spring),
+    box-shadow var(--dur) var(--ease-out),
+    background-color var(--dur-slow) linear;
+}
+
+/* Inner sheen — a slow diagonal gloss so glass reads as glass, not as a rect. */
+.panel::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: linear-gradient(
+    142deg,
+    color-mix(in oklab, #fff 9%, transparent) 0%,
+    transparent 34%,
+    transparent 66%,
+    color-mix(in oklab, var(--amb-glow) 7%, transparent) 100%
+  );
+}
+
+/* Hover lift. `translateZ` promotes the layer so the backdrop-filter doesn't
+   get re-rasterised on every frame of the transition. */
+.panel--interactive {
+  cursor: default;
+}
+
+@media (hover: hover) {
+  .panel--interactive:hover {
+    transform: translate3d(0, calc(-3px * var(--motion)), 0);
+    box-shadow:
+      0 calc(-1 * var(--px)) 0 0 var(--amb-lift),
+      0 var(--px) 0 0 var(--amb-lift),
+      calc(-1 * var(--px)) 0 0 0 var(--amb-lift),
+      var(--px) 0 0 0 var(--amb-lift),
+      inset 0 var(--px) 0 0 var(--glass-hi),
+      inset 0 calc(-1 * var(--px)) 0 0 var(--glass-lo),
+      var(--shadow-lift),
+      var(--halo);
+  }
+}
+
+/* Idle float. Each panel gets its own --float-delay so the grid undulates
+   instead of bobbing in unison like a boy band. */
+.panel--float {
+  animation: floatY calc(var(--float-dur, 7s) / max(var(--motion), 0.0001))
+    ease-in-out infinite;
+  animation-delay: var(--float-delay, 0s);
+}
+
+@media (hover: hover) {
+  .panel--float:hover {
+    animation-play-state: paused;
+  }
+}
+
+@keyframes floatY {
+  0%,
+  100% {
+    translate: 0 0;
+  }
+  50% {
+    translate: 0 calc(-5px * var(--motion));
+  }
+}
+
+/* Entrance — staggered by --i from main.js. */
+.panel {
+  animation-name: panelIn;
+  animation-duration: 620ms;
+  animation-timing-function: var(--ease-spring);
+  animation-delay: calc(var(--i, 0) * 55ms);
+  animation-fill-mode: both;
+}
+.panel--float {
+  /* Two animations: the entrance runs once, the float runs forever. */
+  animation-name: panelIn, floatY;
+  animation-duration: 620ms, calc(var(--float-dur, 7s) / max(var(--motion), 0.0001));
+  animation-timing-function: var(--ease-spring), ease-in-out;
+  animation-delay: calc(var(--i, 0) * 55ms), calc(620ms + var(--float-delay, 0s));
+  animation-iteration-count: 1, infinite;
+  animation-fill-mode: both, none;
+}
+
+/* Every displacement is multiplied by --motion, so at --motion: 0 this collapses
+   to a plain opacity fade rather than twelve panels sliding and un-blurring. */
+@keyframes panelIn {
+  from {
+    opacity: 0;
+    transform: translate3d(0, calc(22px * var(--motion)), 0)
+      scale(calc(1 - 0.03 * var(--motion)));
+    filter: blur(calc(6px * var(--motion)));
+  }
+  to {
+    opacity: 1;
+    transform: none;
+    filter: blur(0);
+  }
+}
+
+/* ── Panel anatomy ───────────────────────────────────────────────────────── */
+
+.panel__head {
+  display: flex;
+  align-items: center;
+  gap: var(--px2);
+  margin-bottom: var(--px3);
+}
+
+.panel__title {
+  font-family: var(--font-ui);
+  font-size: var(--fs-micro);
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--amb-ink-soft);
+}
+
+.panel__spark {
+  width: var(--px2);
+  height: var(--px2);
+  flex: none;
+  background: var(--amb-glow);
+  box-shadow: 0 0 var(--px3) var(--amb-glow);
+  animation: sparkPulse calc(2.4s / max(var(--motion), 0.0001)) ease-in-out infinite;
+}
+
+.panel__tools {
+  margin-left: auto;
+  display: flex;
+  gap: var(--px);
+}
+
+/* Grid rows stretch every panel to the height of the tallest in its row. Rather
+   than fight that (ragged panel heights look like a bug, not like craft), we
+   accept the stretch and CENTRE the content inside it — so a short widget sits
+   in the middle of its plate instead of clinging to the top with a void
+   underneath. */
+.panel__body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.panel__body > * {
+  width: 100%;
+}
+
+@keyframes sparkPulse {
+  0%,
+  100% {
+    opacity: 0.55;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.35);
+  }
+}
+
+/* ── Grid ────────────────────────────────────────────────────────────────────
+   auto-fit + minmax gives us every breakpoint for free; the named spans below
+   just let the hero widgets claim more room when there's room to claim.
+   ------------------------------------------------------------------------- */
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr));
+  gap: clamp(var(--px3), 1.4vw, var(--px5));
+  align-content: start;
+}
+
+@media (min-width: 900px) {
+  .grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+  .span-2 { grid-column: span 2; }
+  .span-4 { grid-column: span 4; }
+  .row-2  { grid-row: span 2; }
+}
+
+@media (min-width: 1500px) {
+  .grid {
+    grid-template-columns: repeat(6, 1fr);
+  }
+  .span-4 { grid-column: span 3; }
+}
+
+/* ── Topbar ──────────────────────────────────────────────────────────────── */
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--px4);
+  flex-wrap: wrap;
+  animation: panelIn 700ms var(--ease-out) both;
+}
+
+.topbar__brand {
+  display: flex;
+  align-items: center;
+  gap: var(--px3);
+  min-width: 0;
+}
+
+.topbar__sigil {
+  width: 44px;
+  height: 44px;
+  flex: none;
+  image-rendering: pixelated;
+  filter: drop-shadow(0 0 10px color-mix(in oklab, var(--amb-glow) 60%, transparent));
+  animation: floatY calc(5s / max(var(--motion), 0.0001)) ease-in-out infinite;
+}
+
+.topbar__titles {
+  min-width: 0;
+}
+
+.topbar__title {
+  font-family: var(--font-display);
+  font-size: clamp(10px, 1.5vw, 15px);
+  line-height: 1.5;
+  color: var(--amb-ink);
+  text-shadow:
+    0 2px 0 rgb(0 0 0 / 0.55),
+    0 0 22px color-mix(in oklab, var(--amb-glow) 30%, transparent);
+}
+
+.topbar__sub {
+  margin-top: 6px;
+  font-family: var(--font-ui);
+  font-size: var(--fs-micro);
+  color: var(--amb-ink-soft);
+  opacity: 0.85;
+  transition: opacity var(--dur-slow) linear;
+}
+
+.topbar__tools {
+  display: flex;
+  gap: var(--px2);
+  flex-wrap: wrap;
+}
+
+/* ── Buttons ─────────────────────────────────────────────────────────────── */
+
+.tbtn,
+.btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--px2);
+  padding: var(--px2) var(--px3);
+  overflow: hidden;
+
+  font-family: var(--font-ui);
+  font-size: var(--fs-micro);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--amb-ink);
+
+  background: color-mix(in oklab, var(--amb-mid) 46%, transparent);
+  backdrop-filter: blur(8px);
+  box-shadow:
+    0 calc(-1 * var(--px)) 0 0 var(--glass-edge),
+    0 var(--px) 0 0 var(--glass-edge),
+    calc(-1 * var(--px)) 0 0 0 var(--glass-edge),
+    var(--px) 0 0 0 var(--glass-edge),
+    inset 0 2px 0 0 var(--glass-hi),
+    inset 0 -2px 0 0 var(--glass-lo);
+
+  transition:
+    transform var(--dur-fast) var(--ease-snap),
+    background-color var(--dur-fast) linear,
+    color var(--dur-fast) linear;
+}
+
+.tbtn:hover,
+.btn:hover {
+  background: color-mix(in oklab, var(--amb-lift) 60%, transparent);
+  transform: translateY(calc(-2px * var(--motion)));
+}
+
+/* Buttons are physical objects: they must go *down* when pressed. */
+.tbtn:active,
+.btn:active {
+  transform: translateY(1px);
+  box-shadow:
+    0 calc(-1 * var(--px)) 0 0 var(--glass-edge),
+    0 var(--px) 0 0 var(--glass-edge),
+    calc(-1 * var(--px)) 0 0 0 var(--glass-edge),
+    var(--px) 0 0 0 var(--glass-edge),
+    inset 0 2px 0 0 var(--glass-lo);
+}
+
+.tbtn[aria-pressed='true'] {
+  color: #10121f;
+  background: var(--amb-glow);
+  box-shadow:
+    0 calc(-1 * var(--px)) 0 0 var(--amb-glow),
+    0 var(--px) 0 0 var(--amb-glow),
+    calc(-1 * var(--px)) 0 0 0 var(--amb-glow),
+    var(--px) 0 0 0 var(--amb-glow),
+    inset 0 2px 0 0 rgb(255 255 255 / 0.45),
+    var(--halo);
+}
+
+.btn--primary {
+  color: #10121f;
+  background: var(--amb-glow);
+  box-shadow:
+    0 calc(-1 * var(--px)) 0 0 var(--amb-glow),
+    0 var(--px) 0 0 var(--amb-glow),
+    calc(-1 * var(--px)) 0 0 0 var(--amb-glow),
+    var(--px) 0 0 0 var(--amb-glow),
+    inset 0 2px 0 0 rgb(255 255 255 / 0.4),
+    inset 0 -2px 0 0 rgb(0 0 0 / 0.2);
+}
+
+.btn--primary:hover {
+  background: color-mix(in oklab, var(--amb-glow) 82%, #fff);
+}
+
+.btn--icon {
+  padding: var(--px2);
+  width: 40px;
+  height: 40px;
+}
+
+/* A disabled button must look unavailable AND stop responding to the pointer —
+   otherwise it still lifts on hover and the ripple still fires, which promises
+   an action it isn't going to perform. */
+.btn:disabled {
+  opacity: 0.38;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.tbtn__ico {
+  width: 12px;
+  height: 12px;
+  flex: none;
+  background: currentColor;
+  /* Chunky 12×12 glyphs, drawn as clip-paths so they scale without blurring. */
+}
+
+.tbtn__ico[data-ico='sound'] {
+  clip-path: polygon(0 33%, 25% 33%, 50% 8%, 50% 92%, 25% 67%, 0 67%, 0 33%);
+}
+.tbtn__ico[data-ico='motion'] {
+  clip-path: polygon(8% 42%, 33% 42%, 33% 17%, 92% 50%, 33% 83%, 33% 58%, 8% 58%);
+}
+.tbtn__ico[data-ico='clock'] {
+  clip-path: polygon(
+    42% 8%, 58% 8%, 58% 46%, 84% 46%, 84% 62%, 42% 62%
+  );
+}
+
+/* Ripple — spawned by ui/ripple.js at the click point. */
+.ripple {
+  position: absolute;
+  translate: -50% -50%;
+  width: 8px;
+  height: 8px;
+  pointer-events: none;
+  background: color-mix(in oklab, #fff 70%, transparent);
+  animation: rippleOut 520ms var(--ease-out) forwards;
+}
+
+@keyframes rippleOut {
+  to {
+    width: 220px;
+    height: 220px;
+    opacity: 0;
+  }
+}
+
+/* ── Small parts ─────────────────────────────────────────────────────────── */
+
+.meter {
+  position: relative;
+  height: var(--px3);
+  overflow: hidden;
+  background: color-mix(in oklab, #000 42%, transparent);
+  box-shadow: inset 0 0 0 2px color-mix(in oklab, var(--amb-mid) 70%, transparent);
+}
+
+.meter__fill {
+  height: 100%;
+  width: 0;
+  background: linear-gradient(
+    90deg,
+    var(--amb-accent),
+    color-mix(in oklab, var(--amb-glow) 80%, #fff)
+  );
+  box-shadow: 0 0 var(--px3) color-mix(in oklab, var(--amb-glow) 60%, transparent);
+  transition: width var(--dur-slow) var(--ease-spring);
+}
+
+/* Dithered shine that travels along any filled meter. */
+.meter__fill::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    115deg,
+    transparent 0 6px,
+    rgb(255 255 255 / 0.16) 6px 12px
+  );
+  animation: meterSlide calc(1.4s / max(var(--motion), 0.0001)) linear infinite;
+}
+
+@keyframes meterSlide {
+  to {
+    background-position: 24px 0;
+  }
+}
+
+.stat {
+  display: grid;
+  gap: 2px;
+}
+
+.stat__k {
+  font-size: var(--fs-nano);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--amb-ink-soft);
+  opacity: 0.8;
+}
+
+.stat__v {
+  font-family: var(--font-ui);
+  font-size: var(--fs-base);
+  color: var(--amb-ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.divider {
+  height: 2px;
+  margin: var(--px3) 0;
+  background: repeating-linear-gradient(
+    90deg,
+    color-mix(in oklab, var(--amb-mid) 90%, transparent) 0 4px,
+    transparent 4px 8px
+  );
+}

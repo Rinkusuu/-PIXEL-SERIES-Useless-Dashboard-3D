@@ -1,0 +1,15 @@
+{
+  "name": "useless-but-aesthetic-dashboard",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "A cozy, animated pixel-art dashboard that does nothing useful, beautifully.",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "vite": "^5.4.10"
+  }
+}
