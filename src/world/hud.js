@@ -9,7 +9,7 @@ import { el } from '../core/util.js';
 import { store } from '../core/store.js';
 
 export class Hud {
-  constructor(onUse) {
+  constructor(onUse, onWatch) {
     this.tipLabel = el('span');
     this.tipKey = el('span.w3d__key', { text: '  [E]' });
     this.tip = el('div.w3d__tip', { role: 'status', 'aria-live': 'polite' }, [this.tipLabel, this.tipKey]);
@@ -18,15 +18,30 @@ export class Hud {
     this.use = el('button.btn.w3d__use', { type: 'button', text: 'Use', onclick: onUse });
     this.fade = el('div.w3d__fade');
     this.hints = el('div.w3d__hints');
-    this.root = el('div.w3d', {}, [el('div.w3d__dot'), this.tip, this.stick, this.use, this.hints, this.fade]);
+    // What the watch, and anything else seen only in the world, says out loud.
+    this.live = el('p.sr-only', { 'aria-live': 'polite' });
+    // The clock's timer role, as the classic Local Time panel has it: the minute, never the second.
+    this.timer = el('p.sr-only', { role: 'timer', 'aria-live': 'off' });
+    this.watchBtn = el('button.btn.w3d__watch', { type: 'button', 'aria-label': 'Glance at your watch', text: '⌚', onclick: onWatch });
+    this.root = el('div.w3d', {}, [el('div.w3d__dot'), this.tip, this.stick, this.use, this.watchBtn, this.hints, this.fade, this.live, this.timer]);
     document.body.append(this.root);
 
     const touch = matchMedia('(pointer: coarse)').matches;
     this.hints.innerHTML = touch
       ? 'left thumb walks · right thumb looks<br>tap the ground to go there'
-      : 'click to look around · wasd walks · e uses<br>esc lets go of the mouse';
+      : 'click to look around · wasd walks · e uses<br>q glances at your watch · esc lets go of the mouse';
     this.hints.hidden = Boolean(store.get('hints3d'));
     this._target = null;
+  }
+
+  announce(text) {
+    this.live.textContent = text;
+  }
+
+  /** Called once a second; writes only when the minute changes. */
+  tickMinute(date) {
+    const t = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    if (this.timer.textContent !== t) this.timer.textContent = t;
   }
 
   wakeUp() {

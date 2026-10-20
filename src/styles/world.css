@@ -152,6 +152,16 @@
 :root[data-touch] .w3d[data-target] .w3d__use {
   display: inline-flex;
 }
+.w3d__watch {
+  position: absolute;
+  right: var(--px6);
+  bottom: calc(var(--px8) * 3 + 56px);
+  pointer-events: auto;
+  display: none;
+}
+:root[data-touch] .w3d__watch {
+  display: inline-flex;
+}
 
 /* ── World settings ────────────────────────────────────────────────────── */
 .wset {

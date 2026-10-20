@@ -31,6 +31,7 @@ import { Meadow, LAYER_GRASS } from './meadow.js';
 import { Player } from './player.js';
 import { Input } from './input.js';
 import { Hud } from './hud.js';
+import { Watch } from './watch.js';
 
 const REACH = 3.2; // metres: how far away a thing can be and still be used
 
@@ -63,8 +64,12 @@ export function startWorld(canvas) {
 
   const player = new Player(col);
   water.watch(player.camera, LAYER_GRASS);
-  const hud = new Hud(() => input.queueUse());
+  const hud = new Hud(() => input.queueUse(), () => input.queueWatch());
   const input = new Input(canvas, hud);
+  world.add(player.camera); // the watch hangs off the camera, so the camera must be in the scene
+  const watch = new Watch(player.camera, hud);
+  bus.on('second', (d) => hud.tickMinute(d));
+  addEventListener('keydown', (e) => e.key === 'Escape' && watch.lower());
   const interactables = [...house.interactables];
   const targets = interactables.map((i) => i.object);
   const ray = new Raycaster();
@@ -131,6 +136,8 @@ export function startWorld(canvas) {
     const target = hit ? interactables[targets.indexOf(hit.object)] : null;
     hud.setTarget(target);
     if (intent.use && target) target.use();
+    if (intent.watch) watch.press();
+    watch.update(s, dt);
 
     // The palette, everywhere it lands.
     sky.update(s, dt);
