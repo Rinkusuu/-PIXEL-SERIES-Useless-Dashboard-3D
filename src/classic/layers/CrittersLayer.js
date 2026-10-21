@@ -21,9 +21,8 @@ import { Layer } from '../Layer.js';
 import { horizon } from '../horizon.js';
 import { px, dot, glowDot } from '../../ui/pixel.js';
 import { bus } from '../../core/bus.js';
-import { store } from '../../core/store.js';
 import { play } from '../../core/play.js';
-import { unlock } from '../../core/achievements.js';
+import { catchLeaf } from '../../core/leaves.js';
 import { rgbCss, rng, clamp, lerp, remap, TAU, fbm1 } from '../../core/util.js';
 
 const KIND = { DEAD: 0, FIREFLY: 1, BUTTERFLY: 2, BIRD: 3, LEAF: 4, POLLEN: 5, PETAL: 6 };
@@ -76,24 +75,7 @@ export class CrittersLayer extends Layer {
     // Caught. It goes out of the world and into a number, which is the saddest
     // sentence in this file and also the entire point of a score.
     best.kind = KIND.DEAD;
-
-    const n = (store.get('leaves') || 0) + 1;
-    store.set('leaves', n);
-
-    bus.emit('sfx', 'pop');
-    bus.emit('coins', 1);
-    bus.emit('leaf', { total: n });
-
-    unlock('leafcatcher');
-    if (n >= 25) unlock('leafcatcher25');
-
-    // Only say something on the round numbers. A toast per leaf would be a
-    // punishment for playing.
-    if (n === 1) {
-      bus.emit('toast', { icon: '🍂', text: 'Caught one. It was going to land anyway.' });
-    } else if (n % 25 === 0) {
-      bus.emit('toast', { icon: '🍂', text: `${n} leaves. None of them needed catching.` });
-    }
+    catchLeaf();
   }
 
   resize(W, H) {

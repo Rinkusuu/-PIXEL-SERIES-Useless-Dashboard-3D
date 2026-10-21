@@ -12,9 +12,8 @@ import { horizon } from '../horizon.js';
 import { planetPositions } from '../../sky/planets.js';
 import { STAR_COUNT } from '../../sky/stars.js';
 import { bus } from '../../core/bus.js';
-import { store } from '../../core/store.js';
 import { play } from '../../core/play.js';
-import { unlock } from '../../core/achievements.js';
+import { book } from '../../core/constellations.js';
 import { rgbCss, rng, clamp, TAU, lerp } from '../../core/util.js';
 
 
@@ -60,11 +59,11 @@ export class StarsLayer extends Layer {
 
        You could not build this on a random sky. It's a feature that was quietly
        paid for, months early, by one call to rng(20260713). */
-    this.drawing = []; // star indices in the line you're currently drawing
-    this.saved = store.get('stars') || [];
+    // The constellations themselves (and the wishes) live in core/constellations.js,
+    // shared with the 3D sky; this layer only picks stars and draws.
 
     bus.on('play', ({ mode }) => {
-      if (mode !== 'stars') this._commit();
+      if (mode !== 'stars') book.commit();
     });
 
     bus.on('scene:click', (p) => {
@@ -72,20 +71,14 @@ export class StarsLayer extends Layer {
       this._pick(p);
     });
 
-    /* The panel asks; the sky answers. It can't just empty the store itself,
-       because `saved` lives up here — a cleared store and a full `saved` would
-       write every "forgotten" constellation straight back on the next commit. */
-    bus.on('stars:clear', () => this._clear());
-    bus.on('stars:forget', (i) => this._forget(i));
-    bus.on('stars:name', ({ index, name }) => this._name(index, name));
 
     // Enter finishes the constellation. Escape throws it away.
     addEventListener('keydown', (e) => {
       if (play.mode !== 'stars') return;
       // ...unless you're typing a name, in which case those keys are the panel's.
       if (e.target?.closest?.('input, textarea')) return;
-      if (e.key === 'Enter') { e.preventDefault(); this._commit(); }
-      if (e.key === 'Escape' && this.drawing.length) { e.preventDefault(); this.drawing = []; }
+      if (e.key === 'Enter') { e.preventDefault(); book.commit(); }
+      if (e.key === 'Escape' && book.drawing.length) { e.preventDefault(); book.discard(); }
     });
   }
 
@@ -109,14 +102,8 @@ export class StarsLayer extends Layer {
 
     if (best < 0) return;
 
-    // Clicking the last star again closes the constellation.
-    if (this.drawing.length && this.drawing[this.drawing.length - 1] === best) {
-      return this._commit();
-    }
-    if (this.drawing.includes(best)) return;
-
-    this.drawing.push(best);
-    bus.emit('sfx', this.drawing.length === 1 ? 'pop' : 'type');
+    // Clicking the last star again closes the constellation (the book decides).
+    book.add(best);
   }
 
   /* A wish, if you were fast enough.
@@ -132,83 +119,8 @@ export class StarsLayer extends Layer {
     if (Math.hypot(s.x - x, s.y - y) > WISH_RADIUS) return false;
 
     s.wished = true;
-    const n = store.update('wishes', (w) => (w || 0) + 1);
-
-    bus.emit('sfx', 'fanfare');
-    bus.emit('toast', { icon: '🌠', text: 'You wished. Nothing will come of it.', ms: 4500 });
-    bus.emit('wish', { count: n });
-
-    unlock('wisher');
+    book.wish();
     return true;
-  }
-
-  /** Keep it. Two stars is a line, and a line is enough to be a constellation. */
-  _commit() {
-    if (this.drawing.length < 2) {
-      this.drawing = [];
-      return;
-    }
-
-    this.saved = [...this.saved, { pts: this.drawing, at: Date.now(), name: '' }];
-    store.set('stars', this.saved);
-    this.drawing = [];
-
-    bus.emit('sfx', 'fanfare');
-    bus.emit('toast', {
-      icon: '✨',
-      text: 'It is yours now. It will be there tomorrow.',
-      ms: 4500,
-    });
-
-    // `naming` is the panel's cue to offer the input. The hint has promised you
-    // could name it since the first commit; now the promise is kept.
-    bus.emit('constellation', {
-      count: this.saved.length,
-      index: this.saved.length - 1,
-      naming: true,
-    });
-
-    unlock('stargazer');
-    if (this.saved.length >= 3) unlock('stargazer3');
-  }
-
-  /** Naming is optional, and staying nameless is a legitimate answer. */
-  _name(index, name) {
-    const c = this.saved[index];
-    if (!c) return;
-
-    c.name = String(name).trim().slice(0, 16);
-    store.set('stars', this.saved);
-
-    if (c.name) {
-      bus.emit('sfx', 'confirm');
-      unlock('namer');
-    }
-    bus.emit('constellation', { count: this.saved.length });
-  }
-
-  /** Forget one. The stars stay; only the line between them goes. */
-  _forget(index) {
-    if (!this.saved[index]) return;
-
-    this.saved = this.saved.filter((_, i) => i !== index);
-    store.set('stars', this.saved);
-
-    bus.emit('sfx', 'pop');
-    bus.emit('constellation', { count: this.saved.length });
-  }
-
-  /** Give the sky back. Irreversible — which is why the panel asks twice. */
-  _clear() {
-    if (!this.saved.length) return;
-
-    this.saved = [];
-    this.drawing = [];
-    store.set('stars', []);
-
-    bus.emit('sfx', 'page');
-    bus.emit('toast', { icon: '✨', text: 'The sky is just stars again.', ms: 4000 });
-    bus.emit('constellation', { count: 0 });
   }
 
   resize(W, H) {
@@ -413,13 +325,13 @@ export class StarsLayer extends Layer {
     const col = rgbCss(pal.glow);
 
     // The ones you've kept. Faint — they're memories, not UI.
-    for (const c of this.saved) line(c.pts, 0.3 * vis, col);
+    for (const c of book.saved) line(c.pts, 0.3 * vis, col);
 
     /* And their names, fainter still, and only once the sky is genuinely dark.
        A label is the most UI-shaped object that will ever appear in this scene,
        so it arrives last, quietest, and never at dusk. */
     if (vis > 0.55) {
-      for (const c of this.saved) {
+      for (const c of book.saved) {
         if (!c.name) continue;
 
         const pts = c.pts.map((i) => this.stars[i]).filter(Boolean);
@@ -443,12 +355,12 @@ export class StarsLayer extends Layer {
     }
 
     // The one you're drawing now, brighter, and it breathes.
-    if (this.drawing.length) {
+    if (book.drawing.length) {
       const pulse = 0.55 + Math.sin(t * 3) * 0.2;
-      line(this.drawing, pulse * vis, col);
+      line(book.drawing, pulse * vis, col);
 
       // Ring the stars you've claimed so far.
-      for (const i of this.drawing) {
+      for (const i of book.drawing) {
         const s = this.stars[i];
         if (!s) continue;
         glow.globalAlpha = pulse * vis;

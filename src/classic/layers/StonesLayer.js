@@ -20,18 +20,13 @@ import { Layer } from '../Layer.js';
 import { horizon } from '../horizon.js';
 import { px } from '../../ui/pixel.js';
 import { bus } from '../../core/bus.js';
-import { store } from '../../core/store.js';
 import { play } from '../../core/play.js';
-import { unlock } from '../../core/achievements.js';
+import { contact, finishThrow, stoneCharacter } from '../../core/stones.js';
 import { rgbCss, clamp, lerp } from '../../core/util.js';
 
 const G = 62; // gravity, scene-pixels/s². Tuned by eye, like everything here.
 
-/* Above this angle of descent the stone digs in instead of glancing off.
-   ~14° is roughly right for a real stone, and more importantly it's steep enough
-   that a lazy throw at the near water sinks and a committed one across the lake
-   flies. */
-const BITE_ANGLE = 0.25; // radians
+// Whether it skips (the angle of attack) and what a throw earns live in core/stones.js.
 
 export class StonesLayer extends Layer {
   constructor() {
@@ -108,8 +103,7 @@ export class StonesLayer extends Layer {
       vx: (dx / dist) * speed,
       vy: (dy / dist) * speed,
       vh: lift,
-      bounce: 0.48 + Math.random() * 0.14, // how much of the drop it gives back
-      drag: 0.79 + Math.random() * 0.07, // how much forward speed each kiss costs
+      ...stoneCharacter(),
       skips: 0,
       spin: 0,
     };
@@ -138,62 +132,21 @@ export class StonesLayer extends Layer {
     s.h = 0;
 
     const forward = Math.hypot(s.vx, s.vy); // speed along the water
-    const drop = -s.vh; // how fast it's coming down
-    const angle = Math.atan2(drop, forward); // the angle of attack
-
     const ring = { x: s.x, y: s.y, strength: clamp(forward / 90, 0.3, 1) };
+    bus.emit('water:ring', ring);
 
-    // Too steep to plane, or too slow to stay up. It digs in and sinks.
-    if (angle > BITE_ANGLE || forward < 30) {
-      bus.emit('water:ring', ring);
+    // Too steep to plane, or too slow to stay up: it digs in and sinks.
+    if (contact(s, 30) === 'sink') {
       bus.emit('splash', clamp(forward / 110, 0.2, 0.8));
       return this._done();
     }
-
-    /* It SKIPS. Each contact costs energy, and the bounce costs more than the
-       run — which is why the hops get shorter AND closer together, and why a
-       good throw ends in that little flurry of rapid touches before it goes
-       under. We didn't write the flurry. It's just what these numbers do. */
-    s.vh = drop * s.bounce;
-    s.vx *= s.drag;
-    s.vy *= s.drag;
     s.h = 0.1;
-    s.skips++;
-
-    bus.emit('water:ring', ring);
-    bus.emit('splash', clamp(forward / 220, 0.08, 0.3));
-
-    if (s.skips >= 3) bus.emit('sfx', 'type');
   }
 
   _done() {
     const n = this.stone?.skips ?? 0;
     this.stone = null;
-
-    const best = store.get('skips') || 0;
-
-    if (n === 0) {
-      bus.emit('toast', { icon: '🪨', text: 'Straight down. A rock, technically.' });
-    } else if (n > best) {
-      store.set('skips', n);
-      bus.emit('sfx', 'fanfare');
-      bus.emit('toast', { icon: '🪨', text: `${n} skips — a new best.`, ms: 4000 });
-    } else {
-      bus.emit('toast', { icon: '🪨', text: `${n} skip${n === 1 ? '' : 's'}.` });
-    }
-
-    if (n > 0) {
-      bus.emit('coins', n * 2);
-      unlock('skipper');
-      if (n >= 5) unlock('skipper5');
-    }
-
-    /* The throw is announced whether or not it worked. This used to `return`
-       early on a duffed throw, so a stone that went straight down told nobody —
-       the panel's tally never refreshed, and the one event that means "the throw
-       is over" simply didn't fire when the throw was bad. Failure is an outcome,
-       not an absence of one. */
-    bus.emit('skip', { skips: n, best: Math.max(n, best) });
+    finishThrow(n);
   }
 
   draw(g, env) {

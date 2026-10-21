@@ -436,3 +436,26 @@ Bundle: shell **62.7 KB gz**, world **161.7 KB gz** (+5 KB: objects, watch, phot
 2. B opens the pocket book with all 15 panels visible → B closes it.
 
 Both pass (10 s). Mobile e2e remains for P6, along with the §10 criterion "every panel from the desktop and mobile".
+
+---
+
+## P4 — Useless things, physically
+
+### Decisions (P4 question round)
+- **Fishing:** hold E to draw the rod back, release to cast (distance from how long you held). A voxel float on the water; the bite is the same Poisson process; E when the float goes under.
+- **Stones:** the look direction is the launch angle (look low over the water for a flat throw); hold E for power. Same angle-of-attack rule as Classic.
+- **Constellations:** on the hill rock, **at night you lie back and draw** (centre dot on a star + E, Enter finishes); **by day the rock is Zen**. Naming stays in the Idle Hands panel.
+- **Leaves:** voxel leaves spin down from the big tree (more in autumn); look at one + E. Generous aim.
+- **Shooting stars:** a glowing voxel streak every 20–40 s after dark; look + E while it passes (±6°). It still grants nothing.
+- **Old data in the world:** saved constellations drawn in the sky with their names; a bucket on the dock holding your catches; a marker buoy as far out as your best skip.
+
+### P4.0 — One set of rules for both worlds (done)
+The rules moved out of the classic layers into `core/` so the 3D world plays by exactly the same ones:
+- `core/fishing.js`: FISH table, `bites(dt)` (Poisson, dt/MEAN_WAIT), `rollCatch(night)`, `landCatch`, `lostCatch`
+- `core/stones.js`: `BITE_ANGLE`, `stoneCharacter`, `contact(stone, minForward)`, `finishThrow`. Units are passed in: classic pixels use minForward 30, 3D metres scale from G.
+- `core/constellations.js`: the `book` of saved star indices, with add/commit/name/forget/clear plus `wish`. It owns the `stars:*` bus listeners StarsLayer used to have.
+- `core/leaves.js`: `catchLeaf`
+
+Classic Fishing/Stones/Stars/Critters layers now call these. Smoke-tested in Classic: a stone skipped 9 times, the best was stored, no errors. 12 new tests in `core/rules.test.js`.
+
+One tiny fix: a constellation name cut at 16 characters could end in a space; it is now trimmed after the cut.

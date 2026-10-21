@@ -19,27 +19,11 @@ import { Layer } from '../Layer.js';
 import { horizon } from '../horizon.js';
 import { px } from '../../ui/pixel.js';
 import { bus } from '../../core/bus.js';
-import { store } from '../../core/store.js';
 import { play } from '../../core/play.js';
-import { unlock } from '../../core/achievements.js';
+import { BITE_WINDOW, CAST_TIME, bites, landCatch, lostCatch, rollCatch } from '../../core/fishing.js';
 import { rgbCss, clamp, rng, lerp, TAU } from '../../core/util.js';
 
-/* The catch table. Weighted, and the weights move with the world: you will not
-   pull a sunfish out of a frozen lake at 3am. */
-export const FISH = [
-  { id: 'minnow',   icon: '🐟', name: 'Minnow',          coins: 2,  w: 30 },
-  { id: 'perch',    icon: '🐠', name: 'Perch',           coins: 5,  w: 22 },
-  { id: 'carp',     icon: '🐡', name: 'Startled Carp',   coins: 9,  w: 14 },
-  { id: 'eel',      icon: '🦑', name: 'Something Long',  coins: 14, w: 7, night: true },
-  { id: 'boot',     icon: '🥾', name: 'A Boot',          coins: 1,  w: 12 },
-  { id: 'can',      icon: '🥫', name: 'Rusted Tin',      coins: 1,  w: 8 },
-  { id: 'moon',     icon: '🌙', name: "The Moon's Reflection", coins: 25, w: 2, night: true },
-  { id: 'star',     icon: '⭐', name: 'A Fallen Star',   coins: 40, w: 1, night: true },
-];
-
-const CAST_TIME = 0.45; // seconds the line is in the air
-const BITE_WINDOW = 1.1; // how long you have to strike
-const MEAN_WAIT = 9; // seconds; the Poisson rate is 1/this
+// The rules (the catch table, the Poisson bite, what a catch does) live in core/fishing.js.
 
 export class FishingLayer extends Layer {
   constructor() {
@@ -138,7 +122,7 @@ export class FishingLayer extends Layer {
       /* THE POISSON DRAW. Probability of a bite in this frame is dt/MEAN_WAIT,
          evaluated fresh every frame — never a countdown. This is what makes the
          wait memoryless, and the memorylessness is the whole point. */
-      if (Math.random() < dt / MEAN_WAIT) {
+      if (bites(dt)) {
         this.state = 'biting';
         this._t = 0;
         bus.emit('fish:bite'); // the one moment the game asks anything of you
@@ -154,39 +138,16 @@ export class FishingLayer extends Layer {
       this._dip = Math.abs(Math.sin(this._t * 22)) * 3;
       if (this._t > BITE_WINDOW) {
         this._reset();
-        bus.emit('toast', { icon: '💨', text: 'It got away. There will be others.' });
+        lostCatch();
       }
     }
   }
 
   /** You struck in time. Roll the table. */
   _land() {
-    const night = this._night;
-
-    const pool = FISH.filter((f) => !f.night || night);
-    const total = pool.reduce((n, f) => n + f.w, 0);
-
-    let roll = Math.random() * total;
-    let caught = pool[0];
-    for (const f of pool) {
-      roll -= f.w;
-      if (roll <= 0) { caught = f; break; }
-    }
-
-    const catches = [...store.get('catches'), caught.id];
-    store.set('catches', catches);
-
     bus.emit('splash', 1);
     bus.emit('water:ring', { x: this.float.x, y: this.float.y });
-    bus.emit('sfx', caught.coins > 20 ? 'fanfare' : 'coin');
-    bus.emit('coins', caught.coins);
-    bus.emit('toast', { icon: caught.icon, text: `${caught.name} — ${caught.coins} coins`, ms: 4000 });
-    bus.emit('fish', { fish: caught, total: catches.length });
-
-    unlock('angler');
-    if (catches.length >= 10) unlock('angler10');
-    if (caught.id === 'boot') unlock('boot');
-
+    landCatch(rollCatch(this._night));
     this._reset();
   }
 
