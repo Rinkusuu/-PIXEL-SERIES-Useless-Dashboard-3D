@@ -26,7 +26,6 @@ import { play } from './core/play.js';
 import { env } from './core/env.js';
 import { $, el } from './core/util.js';
 
-import { Scene } from './classic/Scene.js';
 import { sunPosition } from './sky/planets.js';
 import { makeSprite } from './ui/pixel.js';
 import { SEASON_KEYS, SEASON_ICON } from './sky/season.js';
@@ -338,6 +337,13 @@ function switchMode(next) {
   location.reload(); // pagehide flushes the store
 }
 
+/* The classic painting is a chunk of its own too, so a visit to the world never
+   downloads fifteen 2D layers it will not draw (and the sizes can be stated
+   honestly, separately). The service worker precaches both. */
+function startClassic() {
+  return import('./classic/Scene.js').then(({ Scene }) => new Scene($('#scene'), $('#glow')));
+}
+
 /* three.js and the world load lazily: Classic, and the shell around both, must
    stay as fast to open as they were before there was a world at all. */
 function startWorld() {
@@ -347,7 +353,7 @@ function startWorld() {
       // Not remembered as a choice: next visit tries the world again.
       console.error('[world] failed to start:', err);
       document.documentElement.dataset.mode = 'classic';
-      new Scene($('#scene'), $('#glow'));
+      startClassic();
       bus.emit('toast', { icon: '🖼️', text: 'The world would not open. Classic it is, for now.', ms: 6000 });
     });
 }
@@ -365,7 +371,7 @@ function boot() {
   const mode = pickMode();
   document.documentElement.dataset.mode = mode;
 
-  if (mode === 'classic') new Scene($('#scene'), $('#glow'));
+  if (mode === 'classic') startClassic();
   else startWorld();
 
   const postcard = () => {

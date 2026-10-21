@@ -571,3 +571,40 @@ Checked as a cold open in Chromium: first visit installs the service worker (the
 **Bug found by it:** on phones the page footer sat above the HUD layer and **covered the Use button**. The HUD now sits above the page; it lets every pointer through except its own buttons. (The debug teleport also clears a pending tap-to-walk.)
 
 E2E total: 6 tests, all pass (≈18 s).
+
+### P6.5 — Sizes stated separately, README (done)
+- The classic painting is now a lazy chunk too (`startClassic()` in main.js, the same pattern as the world). A visit to the world never downloads the fifteen 2D layers, and the sizes separate cleanly (gzip):
+
+| | JS | |
+|---|---|---|
+| Shell | **45.6 KB** | + CSS 9.0 KB, fonts 17 KB |
+| Classic | **16.9 KB** | lazy |
+| Shared rules (fishing/stones/stars/leaves) | 1.8 KB | lazy, used by both |
+| World | **175.4 KB** | lazy; ~140 KB is three.js |
+
+  Classic re-checked after the split: stones skip and store, the comparison captures match, no errors.
+- README: install/test commands; a "walk into it" paragraph; decision 1 marked as the painting's; the honest size table above; **"The world you can walk into"** (the object → panel table, "Things worth finding in the world"); the new architecture tree (core/env, migrate and the rules; sky/moon and stars; world/; ui/panels and world-settings; both lazy chunks); 3D accessibility.
+
+### P6.6 — Final captures (done)
+- 3D: `p6-{1920,1366,430,390}-{cabin,door-open,meadow-noon,lake-dusk,hill-night,yard-night}.png`
+- Classic: `p6-classic-{1920,1366,430,390}-{noon,midnight}.png`
+- Offline: `p6-1366-offline-cold-open.png`
+
+Per-frame averages (all vsync-bound at 60 fps on this Mac):
+- 1920/1366 high: **82–151 draw calls**, 1.5–4.5 M triangles
+- 430/390 medium: **63–91 calls**, 1.0–2.0 M triangles
+
+### §10 — Done criteria, checked
+| Criterion | Status |
+|---|---|
+| Every dashboard feature reachable in 3D, and intact in Classic | ✅ 14 objects + pocket book + ⌘K; e2e on desktop **and** phone; Classic smoke-tested and captured |
+| Old user data carried over without loss | ✅ `uad.v1` → `uad.v2` migration, tested (and v1 kept); old catches/stars/skips shown in the world |
+| Cabin → hill and back, watch, every panel, desktop and phone | ✅ e2e (walk out, watch, every panel ×2 form factors); walking scripts reach the hill, tower, dock and shore |
+| Perf meets §7 at the auto tier | ⚠️ 60 fps on this Mac at every view and viewport, but vsync-bound: **headroom unknown**, and **no real mid-range phone** tested. The A/B method (two checkouts, alternating, ≥3 runs, vsync off) is **deferred at the user's request** (the laptop would be loud). |
+| Offline: opens, the 3D world shows, weather becomes fog | ✅ cold offline open into the world; offline thickens the air and drains colour |
+| Nothing makes the dashboard useful | ✅ no to-dos, timers, countdowns or quests were added; the wish still grants nothing |
+
+**Still open:**
+- the §7 A/B performance run (waiting for the go-ahead)
+- a real phone
+- Safari/WebKit has not been tried (Chromium only so far)

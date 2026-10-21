@@ -4,10 +4,14 @@ A cosy pixel world that tells you the time, the weather, the season, where the I
 
 ```bash
 npm install
-npm run dev
+npm run dev        # the app
+npm test           # 90 unit tests: the sky, the store, the rules, the world's layout
+npm run e2e        # 6 browser tests: walking out, the watch, every panel on desktop and phone
 ```
 
 It also works with the network unplugged. That took some doing, and it's the most interesting thing in here.
+
+**And now you can walk into it.** Where the browser can draw WebGL2, the app opens inside the painting: you wake in the loft of the cabin and can go out of the door, across the meadow, onto the dock and up the hill. The fifteen panels became things in the world. The classic painting is still here, unchanged — it's what you get without WebGL2, and one button away with it.
 
 ---
 
@@ -23,7 +27,7 @@ Nothing on it is productive. That's the point.
 
 ## The seven decisions that define it
 
-**1 · The world is ~500 pixels wide.**
+**1 · The world is ~500 pixels wide.** *(the classic painting)*
 The scene renders into a buffer around 500×280 and is blown up with `image-rendering: pixelated`. That isn't a compromise, it's the art direction — and it means fill cost is constant regardless of monitor. A 5K display and a phone both rasterise ~140,000 pixels a frame. It's why we can afford hundreds of particles and per-scanline water.
 
 **2 · The lake reflects the actual world.**
@@ -42,9 +46,18 @@ Everything — sky, slime, equaliser, breathing ring, a skipping stone — is dr
 `sky/season.js` doesn't change how anything behaves. It changes *who is out*: butterflies in spring, fireflies on summer nights, a blizzard of dead leaves in October, and a winter meadow where nothing flies at all. Same code, four different worlds.
 
 **7 · There are no assets, and no servers either.**
-No sprite sheets, no audio files, no logo, no third-party scripts, no fonts fetched from anyone else — and no ephemeris table for the planets. Every pixel is drawn from ASCII art in the source (`ui/pixel.js`, right down to the 3×5 alphabet the constellations are labelled in), every sound is synthesised (`core/audio.js`), and every celestial body is arithmetic (`sky/planets.js`).
+No sprite sheets, no models, no audio files, no logo, no third-party scripts, no fonts fetched from anyone else — and no ephemeris table for the planets. Every voxel in the walkable world is placed by code, and every pixel of the painting is drawn from ASCII art in the source (`ui/pixel.js`, right down to the 3×5 alphabet the constellations are labelled in), every sound is synthesised (`core/audio.js`), and every celestial body is arithmetic (`sky/planets.js`).
 
-**Total shipped weight: ~59 KB of JavaScript, gzipped, plus 17 KB of font.**
+**Total shipped weight, gzipped, measured on the build:**
+
+| | JavaScript | |
+|---|---|---|
+| The shell (every visit: panels, store, sound, sky maths) | **45.6 KB** | + 9.0 KB CSS, 17 KB of font |
+| The classic painting | **+16.9 KB** | loaded only in Classic |
+| The rules both worlds share (fishing, stones, stars, leaves) | +1.8 KB | |
+| The walkable world | **+175.4 KB** | loaded only in 3D; about 140 KB of it is three.js |
+
+The classic dashboard used to be ~59 KB in one file. Splitting the painting out of the shell is why a visit to the world never downloads fifteen 2D layers it won't draw — and why these numbers can be stated separately and honestly. three.js is the one dependency the world was allowed, and it's the bulk of its weight.
 
 ---
 
@@ -67,6 +80,53 @@ No sprite sheets, no audio files, no logo, no third-party scripts, no fonts fetc
 | **The music** | Makes the world pulse. Fireflies flare on the bass, the water glitters harder, the bloom swells. |
 | **The hour** | If sound is on, it chimes. Once. Softly. Like a clock in another room. |
 | **Unplugging the ethernet** | Try it. |
+
+---
+
+## The world you can walk into
+
+The same place as the painting — the cabin with the lit window, the lake, the meadow, the forest, the hill, the ridges — 250 metres across and walkable. The look is **voxel art under modern lighting**: everything is built from small cubes in code (`world/voxel.js` meshes them greedily, with per-corner ambient occlusion), lit by the real sun or moon with shadows, a hearth and lamps that come on after dark, and light you can see in the air. The palette still decides everything: the sky, the fog, the light, and a colour grade over the frame.
+
+**The dashboard is in the world, not over it.** Each panel is a thing that has a reason to be where it is:
+
+| Panel | Thing | Where |
+|---|---|---|
+| Local Time | a wall clock, and the watch on your wrist | over the door; you |
+| Outside | a barometer and thermometer | by the door, on the porch |
+| Overhead | a telescope | the top of the hill |
+| Useless Fact | the newspaper in the mailbox | the yard |
+| Daily Fortune | a jar of fortune cookies | the table |
+| Words of Someone | a corkboard of pinned notes | the east wall |
+| Ambient Loop FM / Ambience | a radio, and its knobs | the table |
+| Mood | a mirror | the north wall |
+| Coffee | a kettle and a cup | the kitchen counter |
+| Idle Earnings | a jar of coins | the shelf |
+| Tiny Achievements | framed certificates | by the lake window |
+| Idle Hands | a bucket of everything you've caught | the end of the dock |
+| Pixel Pet | Blip, wandering the meadow | outside |
+| Pockets | — it's on you | the pocket book |
+
+Look at one and press **E**: its real panel opens over the world, which carries on behind it. **B** opens the pocket book (all of them at once). **⌘K** opens any of them from anywhere.
+
+### Things worth finding in the world
+
+| | |
+|---|---|
+| **Q** | Glance at your watch: the time, the weather, the station overhead. It buzzes when the ISS is really up there and lit. |
+| **The door** | It opens. The world was outside it the whole time. |
+| **The loft** | Where you wake. There's a ladder. |
+| **The rod on the dock** | Hold E to draw it back, let go to cast. Then wait. The bite is the same Poisson process as the painting's: it can't be predicted, and you can't get better at it. |
+| **The flat stones** | Look low over the water, hold E, throw. Same rule as the painting: shallow skips, steep sinks. A buoy marks your best. |
+| **The flat rock on the hill** | By day, sit and breathe. After dark, lie back and join the stars — the same stars, by the same numbers, as the painting's sky. Your constellations are up there, with their names. |
+| **The big tree** | Leaves fall from it, more in autumn. Catch one. |
+| **A shooting star** | Look at it and press E while it falls. You made a wish. Nothing happens. |
+| **The bench on the porch** | Sit. Zen. The world breathes with you. |
+| **P** | Photo mode: float the camera, frame it, Enter. A postcard from a place that doesn't exist. |
+| **The fire lookout** | A long stair up through the forest to a deck above the trees. |
+| **Weather** | It's yours. Rain darkens the ground and rings the lake; snow settles on the roof and buries the grass, and melts back the way it does in the painting. |
+| **Unplugging the ethernet** | Still try it. The air thickens and the colour drains out of the world. |
+
+Everything in the painting that was real is real here too: the sun and moon stand at their true altitude and bearing (the moon now has a position of its own, `sky/moon.js`, not just a phase), the planets don't twinkle, the weather is your weather. Nothing became useful. There is still nothing to finish.
 
 ---
 
@@ -185,15 +245,24 @@ Now it can.
 
 ```
 src/
-  core/       ticker · bus · store · audio · motion · zen · net · play · achievements
-  sky/        palette · season · planets  (pure: no DOM, no three — shared by both renderers)
-  classic/    Scene · horizon · Layer  +  layers/ (15, back to front)
-  widgets/    Widget base  +  15 panels
+  core/       ticker · bus · store (+ migrate) · env · audio · motion · zen · net · play · achievements
+              fishing · stones · constellations · leaves   (the rules, shared by both worlds)
+  sky/        palette · season · planets · moon · stars  (pure: no DOM, no three — tested)
+  classic/    Scene · horizon · Layer  +  layers/ (15, back to front)     → its own lazy chunk
+  world/      renderer · post · volumetric · voxel · models · layout · collision · terrain · house
+              props · forest · meadow · water · sky3d · lights · weather3d · critters3d · slime
+              player · input · hud · watch · objects · fishing3d · stones3d · stargaze · leaves3d
+              traces · photo · tabcycle                                    → its own lazy chunk
+  widgets/    Widget base  +  15 panels  (unchanged; mounted in both worlds)
   services/   weather (Open-Meteo) · iss (wheretheiss.at) · quotes
-  ui/         feedback · zen-ui · command · postcard · pixel · palette-dom
-  styles/     fonts · tokens · base · panels · widgets · overlays
-sw-template.js   the service worker; vite.config.js fills in the asset list
+  ui/         feedback · zen-ui · command · postcard · pixel · palette-dom · panels · world-settings
+  styles/     fonts · tokens · base · panels · widgets · overlays · world
+sw-template.js   the service worker; vite.config.js fills in the asset list (both lazy chunks included)
 ```
+
+`core/env.js` is the world's state without a renderer — the hour, the weather, the season, the palette, the snow lying on the ground, how offline we are. The classic scene and the 3D world both read it, so there is one clock, one sky and one snow depth. `world/layout.js` is `horizon.js` for three dimensions: the one file that knows where the lake ends, where the path runs and how high the hill is, so a tree cannot stand in the water.
+
+The widgets were never rewritten for the world. Several of them are what fetch the weather, track the station and count the coins, so they stay mounted in both modes; in the world, an object just shows its panel. The store is `uad.v2` now: an old `uad.v1` is migrated (and kept), so nothing you caught, drew or earned is lost.
 
 Modules talk **only** through `core/bus.js`. The scene never imports a widget; no widget imports another. Weather arrives once and the sky, the weather panel, the season's hemisphere, the ISS tracker and the ambient audio all react independently.
 
@@ -220,6 +289,8 @@ What's left still breathes: stars twinkle, fireflies pulse, the sun still crosse
 The clock exposes a screen-reader-only `role="timer"` that announces the **minute**, never the second — a clock that reads sixty times a minute is a denial-of-service attack on its user.
 
 Sound is opt-in and off by default, and that includes the hourly chime. An app that makes a noise you did not ask for is an app you close.
+
+**In the world:** the keyboard reaches everything — **Tab** walks through the things you can use from where you stand, left to right, and turns you to face each one, and E uses it; panels are ordinary DOM and the screen reader hears what the watch and the world say. Reduced motion stops the rain, snow, critters, falling leaves and shooting stars, stills the grass and the water, and turns camera moves (waking, Tab, the watch) into fades. Lightning never flashes under reduced motion, and never more than three times a second otherwise — that one is a test. Head bob is off unless you ask for it, and never with reduced motion; field of view, snap turn and quality are in ⚙ World. Positional sound (the hearth, crickets in the grass, rain on the roof) still runs through the same mixer and mute.
 
 ---
 
