@@ -49,16 +49,19 @@ export class Input {
 
     addEventListener('keydown', (e) => {
       if (typing(e) || e.metaKey || e.ctrlKey || e.altKey) return;
+      this.keys.add(e.code);
       if (WALK_KEYS[e.code]) {
-        this.keys.add(e.code);
         if (e.code.startsWith('Arrow')) e.preventDefault(); // don't scroll the page
       }
-      if (e.code === 'KeyE' && !e.repeat) this.useQueued = true;
+      if (e.code === 'KeyE' && !e.repeat) this.pressUse();
       if (e.code === 'KeyQ' && !e.repeat) this.watchQueued = true;
       if (e.code === 'KeyB' && !e.repeat) this.pocketQueued = true;
       if (e.code === 'KeyP' && !e.repeat) this.photoQueued = true;
     });
-    addEventListener('keyup', (e) => this.keys.delete(e.code));
+    addEventListener('keyup', (e) => {
+      this.keys.delete(e.code);
+      if (e.code === 'KeyE') this.releaseUse();
+    });
     addEventListener('blur', () => this.keys.clear());
 
     document.addEventListener('pointerlockchange', () => {
@@ -156,6 +159,7 @@ export class Input {
     let x = this.stick.x;
     let y = this.stick.y;
     for (const k of this.keys) {
+      if (!WALK_KEYS[k]) continue; // keys also holds R/F for photo mode
       x += WALK_KEYS[k][0];
       y += WALK_KEYS[k][1];
     }
@@ -169,6 +173,9 @@ export class Input {
       look: { ...this.look },
       tap: this.enabled ? this.tap : null,
       use: this.enabled && this.useQueued,
+      // Holding E draws back a rod or winds up a throw; letting go casts it.
+      useHeld: this.enabled && this.useHeld,
+      useReleased: this.enabled && this.useReleasedQueued,
       watch: this.watchQueued,
       pocket: this.pocketQueued,
       photo: this.photoQueued,
@@ -179,11 +186,25 @@ export class Input {
     this.look.dx = this.look.dy = 0;
     this.tap = null;
     this.useQueued = false;
+    this.useReleasedQueued = false;
     return out;
   }
 
-  queueUse() {
+  pressUse() {
     this.useQueued = true;
+    this.useHeld = true;
+  }
+
+  releaseUse() {
+    if (!this.useHeld) return;
+    this.useHeld = false;
+    this.useReleasedQueued = true;
+  }
+
+  /** A tap on the touch Use button: press and release, for things that don't need holding. */
+  queueUse() {
+    this.pressUse();
+    this.releaseUse();
   }
 
   queueWatch() {

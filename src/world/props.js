@@ -168,18 +168,19 @@ export function buildProps(col) {
     col.addSurface(f.x - 1.1, f.z - 1.1, f.x + 1.1, f.z + 1.1, fy + 0.45);
   }
 
-  // ── Skipping stones on the shore ─────────────────────────────────────────
+  // ── Skipping stones on the shore: one pile, one mesh, one thing to pick from ──
   {
     const { x, z } = SPOTS.stones;
+    const y = blockHeight(x, z);
     const rand = rng(31);
-    for (let i = 0; i < 9; i++) {
-      const s = voxelMesh(rock(0.18 + rand() * 0.1, 100 + i, 0.06));
-      const sx = x + (rand() - 0.5) * 1.4;
-      const sz = z + (rand() - 0.5) * 1.4;
-      s.position.set(sx, blockHeight(sx, sz), sz);
-      s.rotation.y = rand() * 6;
-      add(s);
+    const g = new VoxelGrid([x - 0.9, y, z - 0.9], [x + 0.9, y + 0.3, z + 0.9], 0.03);
+    for (let i = 0; i < 11; i++) {
+      const sx = x + (rand() - 0.5) * 1.3;
+      const sz = z + (rand() - 0.5) * 1.3;
+      const r = 0.1 + rand() * 0.08;
+      g.fill([sx - r, y, sz - r], [sx + r, y + r, sz + r], (px, py, pz) => Math.hypot((px - sx) / r, (py - y) / (r * 0.45), (pz - sz) / r) < 1, grain(rand() < 0.5 ? '#a8a8b0' : '#8d8d96', 0.5));
     }
+    named.stones = add(voxelMesh(g));
   }
 
   // A few boulders around the world, so the meadow has something to walk round.

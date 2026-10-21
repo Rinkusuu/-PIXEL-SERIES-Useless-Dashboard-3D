@@ -32,10 +32,11 @@ export const OBJECTS = [
   { id: 'kettle', panel: 'Coffee', label: 'Kettle' },
   { id: 'coins', panel: 'Idle Earnings', label: 'Coin jar' },
   { id: 'certificates', panel: 'Tiny Achievements', label: 'Certificates' },
-  { id: 'rod', panel: 'Idle Hands', label: 'Fishing rod' },
+  { id: 'bucket', panel: 'Idle Hands', label: 'Your catches' }, // the tallies: what you caught, skipped, drew
   { id: 'slime', panel: 'Pixel Pet', label: 'Blip' },
 ];
 // Pockets has no object: it is on you. ⌘K and the pocket book (B) open it.
+// The rod itself is not a panel any more: it is picked up and used (fishing3d.js).
 
 /** A model built in its own little grid around [x, y, z] (the base centre). */
 function model(x, y, z, w, h, d, build) {
@@ -126,7 +127,7 @@ const BUILD = {
   }),
 
   // A fishing rod leaning on the last post of the dock.
-  rod: () => {
+  rod() {
     const x = DOCK.x + DOCK.w / 2 - 0.15;
     const z = DOCK.z1 + 0.5;
     return model(x, DOCK.y, z, 0.3, 2.2, 1.0, (g) => {
@@ -165,3 +166,4 @@ export function buildObjects(existing) {
   return { group, list };
 }
 
+export const buildRod = () => BUILD.rod();

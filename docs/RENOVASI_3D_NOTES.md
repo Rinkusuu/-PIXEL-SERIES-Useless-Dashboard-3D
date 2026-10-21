@@ -459,3 +459,39 @@ The rules moved out of the classic layers into `core/` so the 3D world plays by 
 Classic Fishing/Stones/Stars/Critters layers now call these. Smoke-tested in Classic: a stone skipped 9 times, the best was stored, no errors. 12 new tests in `core/rules.test.js`.
 
 One tiny fix: a constellation name cut at 16 characters could end in a space; it is now trimmed after the cut.
+
+### P4.1 — Fishing on the dock (done)
+`world/fishing3d.js`:
+- E on the rod (last post of the dock) picks it up; it hangs off the camera in 1.25 cm voxels.
+- Hold E to draw back (1.2 s for a full cast of 3–16 m along your heading, `aim.castPoint`), let go to cast. A voxel float flies out over `CAST_TIME` and lands with a ripple.
+- `core/fishing.bites` (Poisson, the same as Classic) decides the bite. The float dips (it just sits lower under reduced motion) and the tooltip says "Strike!". E within `BITE_WINDOW` lands the catch via `rollCatch`/`landCatch`; otherwise "It got away". E while waiting reels in, empty.
+- Casting at land: "That's not the lake." Walking away or Esc puts the rod back.
+- Tested: a cast, a bite seen and struck, and `catches` 0 → 1.
+
+### P4.2 — Skipping stones (done)
+`world/stones3d.js`: one voxel pile on the shore (single mesh). E picks a stone; hold E (1 s) for power, 5–18 m/s; the **look direction is the launch direction**. A side-arm throw leaves the hand 0.5 m above your feet. Real metres, G = 9.8. At each touch, `core/stones.contact` uses the classic rule, with the minimum planing speed converted from pixels (30/62 × 9.8 ≈ 4.7 m/s). Ripples on every touch; over land it simply lands. The next stone is in hand 0.8 s later. Tested: **7 skips**, best stored.
+
+### P4.3 — Constellations and shooting stars (done)
+`world/stargaze.js`:
+- Every saved constellation is drawn as faint lines between the same star indices as Classic (`sky.starDirs` from `starField`), with its name as a 3×5-font sprite under the middle.
+- **Hill rock after dark** (pal.stars > 0.4): "Lie back and look up". You lie at 0.45 m and may look around the whole sky (pitch up to the zenith). The centre dot picks a star within 2.5° (`aim.aimPick`), E joins it via `book.add`, Enter commits, Esc gets up (discarding an unfinished line). **By day the same rock is Zen.**
+- **Shooting stars** every 20–40 s after dark (never under reduced motion): a 1.5 s streak on the glow layer. Looking within 6° shows "Make a wish"; E → `book.wish()`.
+- Tested: stars #4 → #5 → #6 joined and saved as `[4,5,6]`; one wish counted.
+
+### P4.4 — Leaves (done)
+`world/leaves3d.js`: up to 40 voxel leaves (autumn colours) spawn in the big tree's crown at `0.4 × season.leafFall × (0.5 + wind)` per second and sway down. Look at one within 8 m (5° cone) + E → `core/leaves.catchLeaf`. Tested in autumn: 2 caught.
+
+### P4.5 — Old data in the world (done)
+`world/traces.js`:
+- **A bucket on the dock** shows the last 12 catches as coloured voxel fish heaped over the rim, rebuilt in place on `fish`. It is also the object for the **Idle Hands** panel ("Your catches"); the rod is now picked up rather than opening the panel.
+- **A buoy** floats 4 + 2.4 m × best skips out from the stone pile toward the lake centre, rebuilt on `skip`.
+
+### Routing and fixes
+- Hands that are busy (rod, stone) own E. While stargazing E picks stars. Otherwise a wish beats a leaf, which beats a mesh.
+- A mode chosen in the Idle Hands panel can't teleport a rod into your hand: it toasts where to go and switches off again.
+- **Input bugs found by the P4 tests:**
+  - `useReleased` was never cleared (a pattern replace that silently didn't match), so a draw reset every frame and stones threw themselves.
+  - Only walking keys were recorded, so photo mode's R/F never worked.
+  - A tap (including the one that picks up the rod or stone) is no longer a cast or throw.
+
+Captures: `p4-1366-{fishing-cast,fishing-bite,stones,constellation,leaves,bucket,best-skip-buoy}.png`. Tests: 84 unit, 2 e2e, all pass.

@@ -9,13 +9,15 @@ import { el } from '../core/util.js';
 import { store } from '../core/store.js';
 
 export class Hud {
-  constructor(onUse, onWatch, onPocket) {
+  constructor(onUse, onWatch, onPocket, onUseDown, onUseUp) {
     this.tipLabel = el('span');
     this.tipKey = el('span.w3d__key', { text: '  [E]' });
     this.tip = el('div.w3d__tip', { role: 'status', 'aria-live': 'polite' }, [this.tipLabel, this.tipKey]);
     this.knob = el('div.w3d__knob');
     this.stick = el('div.w3d__stick', {}, [this.knob]);
-    this.use = el('button.btn.w3d__use', { type: 'button', text: 'Use', onclick: onUse });
+    // Pointer down/up, not click: a held Use draws back a rod or winds up a throw.
+    this.use = el('button.btn.w3d__use', { type: 'button', text: 'Use', onpointerdown: onUseDown, onpointerup: onUseUp, onpointercancel: onUseUp });
+    this.use.addEventListener('keydown', (e) => e.key === 'Enter' && onUse()); // and it still works from the keyboard
     this.fade = el('div.w3d__fade');
     this.hints = el('div.w3d__hints');
     // What the watch, and anything else seen only in the world, says out loud.

@@ -34,7 +34,15 @@ import { Hud } from './hud.js';
 import { Watch } from './watch.js';
 import { Photo } from './photo.js';
 import { zen } from '../core/zen.js';
-import { buildObjects } from './objects.js';
+import { buildObjects, buildRod } from './objects.js';
+import { Ripples } from './ripples.js';
+import { Fishing } from './fishing3d.js';
+import { Stones } from './stones3d.js';
+import { Stargaze } from './stargaze.js';
+import { Leaves } from './leaves3d.js';
+import { Traces } from './traces.js';
+import { play } from '../core/play.js';
+import { book } from '../core/constellations.js';
 import { closePanels, openPanel, openPocket, panelOpen } from '../ui/panels.js';
 
 const REACH = 3.2; // metres: how far away a thing can be and still be used
@@ -68,7 +76,7 @@ export function startWorld(canvas) {
 
   const player = new Player(col);
   water.watch(player.camera, LAYER_GRASS);
-  const hud = new Hud(() => input.queueUse(), () => input.queueWatch(), () => input.queuePocket());
+  const hud = new Hud(() => input.queueUse(), () => input.queueWatch(), () => input.queuePocket(), () => input.pressUse(), () => input.releaseUse());
   const input = new Input(canvas, hud);
   world.add(player.camera); // the watch hangs off the camera, so the camera must be in the scene
   const watch = new Watch(player.camera, hud);
@@ -82,21 +90,67 @@ export function startWorld(canvas) {
     if (p && document.pointerLockElement) document.exitPointerLock();
   });
   addEventListener('keydown', (e) => e.key === 'Escape' && watch.lower());
-  const objects = buildObjects(props.named);
+  // ── The useless things, physically (P4) ─────────────────────────────────
+  const ripples = new Ripples(world);
+  const traces = new Traces(world);
+  const rod = buildRod();
+  world.add(rod);
+  const fishing = new Fishing(world, rod, player, ripples);
+  const stones = new Stones(world, player, ripples);
+  const stargaze = new Stargaze(sky);
+  const leaves = new Leaves(world);
+  // A play mode chosen in the Idle Hands panel can't put a rod in your hand from
+  // across the map: it says where to go instead.
+  let claimed = null;
+  const claim = (mode, start) => () => {
+    claimed = mode;
+    start();
+  };
+  const WHERE = {
+    fish: 'The rod leans on the last post of the dock.',
+    skip: 'The flat stones are piled on the shore, east of the dock.',
+    stars: 'Lie on the flat rock up the hill, after dark.',
+    leaves: 'Stand under the big tree north of the meadow. They fall on their own.',
+  };
+  bus.on('play', ({ mode }) => {
+    if (mode && mode !== claimed) {
+      bus.emit('toast', { icon: '🧭', text: WHERE[mode], ms: 5000 });
+      play.set(null);
+    }
+    if (!mode) {
+      claimed = null;
+      if (player.seat?.look) player.stand(); // off the rock when the stargazing stops
+    }
+  });
+  addEventListener('keydown', (e) => e.key === 'Escape' && play.mode === 'stars' && play.set(null));
+
+  const objects = buildObjects({ ...props.named, bucket: traces.bucket });
   world.add(objects.group);
   const interactables = [
     ...house.interactables,
     ...objects.list.map((o) => ({ object: o.object, label: () => o.label, use: () => openPanel(o.panel) })),
-    // Zen: sit on the porch bench or lie on the flat rock up the hill.
-    ...[[house.bench, house.benchSeat], [props.named.flatRock, props.named.rockSeat]].map(([object, seat]) => ({
-      object,
-      label: () => 'Sit and breathe',
+    // Zen on the porch bench.
+    { object: house.bench, label: () => 'Sit and breathe', use: () => (player.sit(house.benchSeat), zen.start()) },
+    // The hill rock: Zen by day; after dark you lie back and draw on the sky.
+    {
+      object: props.named.flatRock,
+      label: () => (env.state.pal.stars > 0.4 ? 'Lie back and look up' : 'Sit and breathe'),
       use: () => {
-        player.sit(seat);
-        zen.start();
+        if (env.state.pal.stars <= 0.4) return player.sit(props.named.rockSeat), zen.start();
+        player.sit({ ...props.named.rockSeat, look: true, eye: 0.45 });
+        player.pitch = 0.95;
+        claim('stars', () => play.set('stars'))();
+        bus.emit('toast', { icon: '✨', text: 'Centre a star, E to join it to the last. Enter keeps it; Esc gets up.', ms: 6000 });
       },
-    })),
+    },
+    { object: rod, label: () => 'Pick up the rod', use: claim('fish', () => fishing.pickUp()) },
+    { object: props.named.stones, label: () => 'Pick up a flat stone', use: claim('skip', () => stones.pickUp()) },
   ];
+  // Things the centre dot can rest on that are not meshes: a star, a wish, a leaf.
+  const STAR = { label: () => (book.drawing.length ? 'Join this star' : 'Start with this star') };
+  const WISH = { label: () => 'Make a wish' };
+  const LEAF = { label: () => 'Catch the leaf' };
+  const ROD = { label: () => fishing.tip() };
   const targets = interactables.map((i) => i.object);
   const gazeTargets = [...targets, house.shell];
   const ray = new Raycaster();
@@ -158,13 +212,36 @@ export function startWorld(canvas) {
     if (!photo.update(intent, input.keys, dt)) player.update(intent, dt, s.motion);
     if (player.walked > 4) hud.retireHints();
 
-    // What are we looking at?
-    ray.setFromCamera(new Vector2(0, 0), player.camera);
-    // The cabin's walls are in the test too: the nearest hit must be the thing itself.
-    const hit = player.waking || photo.active || player.seat ? null : ray.intersectObjects(gazeTargets, false)[0];
-    const target = hit && hit.object !== house.shell ? interactables[targets.indexOf(hit.object)] : null;
+    // What are we looking at? Hands that are busy (a rod, a stone) own E.
+    const busy = fishing.active || stones.active;
+    let target = null;
+    let special = null;
+    if (busy) {
+      if (fishing.tip()) target = ROD;
+    } else if (play.mode === 'stars') {
+      const i = stargaze.pickStar(player.camera, s.pal);
+      if (i >= 0) (target = STAR), (special = () => book.add(i));
+    } else if (!player.waking && !photo.active && !player.seat) {
+      const leaf = leaves.aimed(player.camera);
+      if (stargaze.wishable(player.camera)) (target = WISH), (special = () => stargaze.wish());
+      else if (leaf >= 0) (target = LEAF), (special = () => leaves.catch(leaf));
+      else {
+        ray.setFromCamera(new Vector2(0, 0), player.camera);
+        // The cabin's walls are in the test too: the nearest hit must be the thing itself.
+        const hit = ray.intersectObjects(gazeTargets, false)[0];
+        target = hit && hit.object !== house.shell ? interactables[targets.indexOf(hit.object)] : null;
+      }
+    } else if (player.seat?.look && stargaze.wishable(player.camera)) {
+      (target = WISH), (special = () => stargaze.wish());
+    }
     hud.setTarget(target);
-    if (intent.use && target) target.use();
+    if (intent.use && !busy) (special ?? target?.use)?.();
+    fishing.update(intent, s, dt);
+    stones.update(intent, s, dt);
+    stargaze.update(s, dt);
+    leaves.update(s, dt);
+    traces.update(s);
+    ripples.update(dt, s.motion);
     if (intent.watch) watch.press();
     if (intent.pocket) (panelOpen()?.pocket ? closePanels() : openPocket());
     watch.update(s, dt);
@@ -197,7 +274,7 @@ export function startWorld(canvas) {
       clear,
       bloomStrength: 0.85 + s.bass * 0.3 + (s.zen ? (s.breath - 0.5) * 0.25 : 0),
       key: lights.key,
-      outline: target && !panelOpen() ? target.object : null,
+      outline: target?.object && !panelOpen() ? target.object : null,
       // How thick the air is: a clear noon is nearly clean; fog, weather and losing the network thicken it.
       air: {
         density: 0.004 + s.pal.fogAmount * 0.035 + (s.weather === 'fog' ? 0.03 : 0) + s.offline * 0.03,
@@ -232,8 +309,14 @@ export function startWorld(canvas) {
       sky,
       objects: objects.list,
       /** Stand `dist` metres from an object (on the floor you name) and look straight at it. */
+      fishing,
+      input,
+      stones,
+      stargaze,
+      leaves,
       lookAt(id, x, z, feet = 99) {
-        const o = objects.list.find((q) => q.id === id).object;
+        const extra = { rod, stones: props.named.stones, rock: props.named.flatRock, bench: house.bench };
+        const o = extra[id] ?? objects.list.find((q) => q.id === id).object;
         const c = new Box3().setFromObject(o).getCenter(new Vector3());
         this.teleport(x, z, 0, 0, feet);
         col.move(player.pos, 0, 0); // settle out of any furniture first, then aim from where we really are
@@ -252,6 +335,12 @@ export function startWorld(canvas) {
       },
       get tier() {
         return tier.name;
+      },
+      /** Point the eye along a world direction (for aiming at stars and leaves in tests). */
+      aimDir(x, y, z) {
+        const l = Math.hypot(x, y, z);
+        player.yaw = Math.atan2(-x, -z);
+        player.pitch = Math.asin(y / l);
       },
       /** Draw calls and triangles for one whole frame (all passes), and the internal size. */
       async stats() {
