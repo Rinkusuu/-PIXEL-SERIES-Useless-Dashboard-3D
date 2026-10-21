@@ -60,6 +60,7 @@ export default defineConfig({
     target: 'es2020',
     cssCodeSplit: false,
     assetsInlineLimit: 0, // fonts must stay as files so the SW can precache them
+    chunkSizeWarningLimit: 700, // the lazy 3D world chunk is three.js (~590 kB raw); that is expected, not a mistake
   },
   plugins: [serviceWorker()],
   test: { include: ['src/**/*.test.js'] }, // e2e/ belongs to Playwright, not Vitest
