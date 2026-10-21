@@ -338,7 +338,8 @@ class AudioEngine {
     const gap = 70 + Math.random() * 320;
     setTimeout(() => {
       this._hearthLoop();
-      const level = store.get('mix').hearth;
+      // In the 3D world the fire in the hearth is real, so it crackles on its own.
+      const level = Math.max(store.get('mix').hearth, this._spatial ? 0.6 : 0);
       if (!this.enabled || !this.ready || level < 0.03) return;
       if (Math.random() > 0.55) return;
 
@@ -360,7 +361,7 @@ class AudioEngine {
       g.gain.exponentialRampToValueAtTime(peak, t + 0.002);
       g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
 
-      src.connect(f).connect(g).connect(this.busAmb);
+      src.connect(f).connect(g).connect(this._hearthOut());
       src.start(t, Math.random() * 2);
       src.stop(t + dur + 0.02);
     }, gap);
@@ -390,6 +391,8 @@ class AudioEngine {
   _cricket(peak = 0.006) {
     const ctx = this.ctx;
     const t0 = ctx.currentTime;
+    // In the walkable world each cricket is somewhere: a few metres off in the grass.
+    const spot = this._spot(6, 18);
     for (let i = 0; i < 4; i++) {
       const t = t0 + i * 0.09;
       const o = ctx.createOscillator();
@@ -399,10 +402,87 @@ class AudioEngine {
       g.gain.setValueAtTime(0.0001, t);
       g.gain.exponentialRampToValueAtTime(peak, t + 0.005);
       g.gain.exponentialRampToValueAtTime(0.0001, t + 0.03);
-      o.connect(g).connect(this.busAmb);
+      o.connect(g).connect(spot);
       o.start(t);
       o.stop(t + 0.04);
     }
+  }
+
+  // ── Positional sound (the 3D world only) ──────────────────────────────────
+  /* Classic never calls these, and everything below falls back to the plain
+     ambience bus when it hasn't been asked for. All of it still runs through
+     busAmb, so the mixer, the volume and mute apply exactly as before. */
+
+  /** Turn positional sound on: the hearth's position, in metres. */
+  enableSpatial({ hearth }) {
+    this._spatial = { hearth };
+    if (!this.ready) return; // re-applied on init (see _hearthOut)
+    this._applyMix();
+  }
+
+  /** The hearth bed and its crackle: through a panner at the fireplace, if there is one. */
+  _hearthOut() {
+    if (!this._spatial) return this.busAmb;
+    if (!this._hearthPanner) {
+      const p = this._panner(...this._spatial.hearth);
+      p.refDistance = 2;
+      p.rolloffFactor = 1.6;
+      this._hearthPanner = p;
+      // Re-route the rumble bed too, once.
+      this._ambient.fire.g.disconnect();
+      this._ambient.fire.g.connect(p);
+    }
+    return this._hearthPanner;
+  }
+
+  _panner(x, y, z) {
+    const p = this.ctx.createPanner();
+    p.panningModel = 'HRTF';
+    p.distanceModel = 'inverse';
+    p.positionX.value = x;
+    p.positionY.value = y;
+    p.positionZ.value = z;
+    p.connect(this.busAmb);
+    return p;
+  }
+
+  /** A one-shot's destination: a random spot `min`–`max` metres from the listener (3D), or the bus. */
+  _spot(min, max) {
+    if (!this._spatial || !this._listener) return this.busAmb;
+    const a = Math.random() * Math.PI * 2;
+    const r = min + Math.random() * (max - min);
+    const [x, y, z] = this._listener;
+    const p = this._panner(x + Math.cos(a) * r, y - 1.2, z + Math.sin(a) * r);
+    p.refDistance = 3;
+    setTimeout(() => p.disconnect(), 1500);
+    return p;
+  }
+
+  /** Where your ears are and which way they face. Called a few times a second. */
+  setListener(x, y, z, fx, fy, fz) {
+    this._listener = [x, y, z];
+    if (!this.ready) return;
+    const l = this.ctx.listener;
+    const t = this.ctx.currentTime;
+    if (l.positionX) {
+      l.positionX.setTargetAtTime(x, t, 0.05);
+      l.positionY.setTargetAtTime(y, t, 0.05);
+      l.positionZ.setTargetAtTime(z, t, 0.05);
+      l.forwardX.setTargetAtTime(fx, t, 0.05);
+      l.forwardY.setTargetAtTime(fy, t, 0.05);
+      l.forwardZ.setTargetAtTime(fz, t, 0.05);
+    } else {
+      l.setPosition(x, y, z); // older Safari
+      l.setOrientation(fx, fy, fz, 0, 1, 0);
+    }
+    this._hearthOut();
+  }
+
+  /** Under the cabin roof or not: the rain changes character. */
+  setIndoors(on) {
+    if (this._indoors === on) return;
+    this._indoors = on;
+    if (this.ready && this._amb) this.setAmbience(this._amb);
   }
 
   /**
@@ -437,13 +517,14 @@ class AudioEngine {
     const wet = kind === 'storm' ? 1 : clamp(precip, 0, 1);
     const rainFromSky = rainy ? (kind === 'storm' ? 0.14 : 0.09 * (0.35 + wet * 0.65)) : 0;
     this._ramp(A.rain.g.gain, rainFromSky + mix.rain * 0.11, 2.5);
-    A.rain.f.frequency.setTargetAtTime(kind === 'storm' ? 1800 : 2600, this.ctx.currentTime, 1.5);
+    // Under a roof the rain is a dull drumming overhead, not a hiss.
+    A.rain.f.frequency.setTargetAtTime(this._indoors ? 700 : kind === 'storm' ? 1800 : 2600, this.ctx.currentTime, 0.6);
 
     // Snow is *quieter* than clear — muffled, not silent. That's the whole trick.
     const windFromSky = snowy ? 0.02 : rainy ? 0.05 : 0.03 + wind * 0.05;
     this._ramp(A.wind.g.gain, windFromSky + mix.wind * 0.09, 3);
 
-    this._ramp(A.fire.g.gain, mix.hearth * 0.1, 2);
+    this._ramp(A.fire.g.gain, mix.hearth * 0.1 + (this._spatial ? 0.08 : 0), 2);
   }
 
   /**
