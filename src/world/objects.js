@@ -12,7 +12,7 @@
    ========================================================================== */
 
 import { Group } from 'three';
-import { CABIN, DOCK, blockHeight } from './layout.js';
+import { CABIN, DOCK } from './layout.js';
 import { VoxelGrid, color, grain, planks, voxelMesh } from './voxel.js';
 
 const V = 0.025;
@@ -139,16 +139,11 @@ const BUILD = {
     });
   },
 
-  // Blip, the slime, sitting in the grass near the porch (it learns to follow you in P5).
-  slime: () => {
-    const x = 13;
-    const z = 66;
-    const y = blockHeight(x, z);
-    return model(x, y, z, 0.6, 0.45, 0.6, (g) => {
-      g.fill([x - 0.3, y, z - 0.3], [x + 0.3, y + 0.42, z + 0.3], (px, py, pz) => Math.hypot(px - x, (py - y) * 1.35, pz - z) < 0.29, grain('#6fd07a', 0.25));
-      for (const dx of [-0.08, 0.08]) g.fillBox(x + dx - 0.025, y + 0.18, z + 0.24, x + dx + 0.025, y + 0.25, z + 0.29, color('#1a2a20')); // eyes
-    });
-  },
+  // Blip, the slime: built round the origin, because it wanders (slime.js moves it).
+  slime: () => model(0, 0, 0, 0.6, 0.45, 0.6, (g) => {
+    g.fill([-0.3, 0, -0.3], [0.3, 0.42, 0.3], (px, py, pz) => Math.hypot(px, py * 1.35, pz) < 0.29, grain('#6fd07a', 0.25));
+    for (const dx of [-0.08, 0.08]) g.fillBox(dx - 0.025, 0.18, 0.24, dx + 0.025, 0.25, 0.29, color('#1a2a20')); // eyes
+  }),
 };
 
 /**
