@@ -41,6 +41,11 @@ import { Stones } from './stones3d.js';
 import { Stargaze } from './stargaze.js';
 import { Leaves } from './leaves3d.js';
 import { Traces } from './traces.js';
+import { Weather, weatherize, weatherUniforms } from './weather3d.js';
+import { Critters } from './critters3d.js';
+import { Slime } from './slime.js';
+import { voxelMaterial } from './voxel.js';
+import { audio } from '../core/audio.js';
 import { play } from '../core/play.js';
 import { book } from '../core/constellations.js';
 import { closePanels, openPanel, openPocket, panelOpen } from '../ui/panels.js';
@@ -62,7 +67,9 @@ export function startWorld(canvas) {
   const sky = new Sky();
   const lights = new Lights();
   lights.addTo(world);
-  world.add(buildTerrain(), buildSkirt());
+  const terrain = buildTerrain();
+  const skirt = buildSkirt();
+  world.add(terrain, skirt);
   const water = new Water(pipeline);
   water.addTo(world);
   const house = new House(col);
@@ -126,6 +133,16 @@ export function startWorld(canvas) {
 
   const objects = buildObjects({ ...props.named, bucket: traces.bucket });
   world.add(objects.group);
+
+  // ── Weather, seasons, inhabitants (P5) ──────────────────────────────────
+  const weather = new Weather(world, ripples);
+  for (const m of new Set([voxelMaterial, terrain.material, skirt.material, forest.tiles[0].near.pine.material, ...meadow.tiles.flatMap((t) => [t.grass.material, t.flowers.material])])) weatherize(m);
+  weatherize(house.roof.material, { sides: true });
+  const critters = new Critters(world);
+  const slime = new Slime(objects.list.find((o) => o.id === 'slime').object, player);
+  audio.enableSpatial({ hearth: lights.hearth.position.toArray() });
+  let earClock = 0;
+  const fwd = new Vector3();
   const interactables = [
     ...house.interactables,
     ...objects.list.map((o) => ({ object: o.object, label: () => o.label, use: () => openPanel(o.panel) })),
@@ -242,6 +259,15 @@ export function startWorld(canvas) {
     leaves.update(s, dt);
     traces.update(s);
     ripples.update(dt, s.motion);
+    weather.update(s, player.camera.position, dt, tier.name === 'low' ? 0.35 : tier.name === 'medium' ? 0.65 : 1);
+    critters.update(s, player.camera.position, dt);
+    slime.update(s, dt);
+    earClock -= dt;
+    if (earClock <= 0) {
+      earClock = 0.1;
+      player.camera.getWorldDirection(fwd);
+      audio.setListener(...player.camera.position.toArray(), fwd.x, fwd.y, fwd.z);
+    }
     if (intent.watch) watch.press();
     if (intent.pocket) (panelOpen()?.pocket ? closePanels() : openPocket());
     watch.update(s, dt);
@@ -250,6 +276,9 @@ export function startWorld(canvas) {
     sky.update(s, dt);
     sky.sync(player.camera);
     lights.update(s, sky, player.camera.position);
+    lights.hemi.intensity += weather.flash * 4; // lightning lights the land for a moment
+    pipeline.post.post.uniforms.uFlash.value = weather.flash;
+    pipeline.post.post.uniforms.uDesat.value = s.offline * 0.37;
     water.update(s);
     house.update(s, dt);
     updateLamps(props, lights.dark);
@@ -311,6 +340,9 @@ export function startWorld(canvas) {
       /** Stand `dist` metres from an object (on the floor you name) and look straight at it. */
       fishing,
       input,
+      weather,
+      weatherUniforms,
+      audio,
       stones,
       stargaze,
       leaves,

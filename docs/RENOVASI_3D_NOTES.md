@@ -508,3 +508,32 @@ Captures: `p4-1366-{fishing-cast,fishing-bite,stones,constellation,leaves,bucket
 - **Positional audio:** Web Audio panners on the real sources (hearth, crickets in the meadow, rain on the roof). Still behind the mixer and mute; sound stays opt-in.
 - **Inhabitants:** fireflies (summer nights), butterflies (spring/summer days), birds (by day, high up), pollen/petals/blown leaves by season.
 - **Offline:** volumetric air thickens **and colour drains** (about 37%, as in Classic).
+
+### P5.1 — Rain, snow, wet ground, lightning (done)
+`world/weather3d.js`:
+- Rain streaks / snowflakes are instanced (up to 1800, scaled by `precip` and by tier 0.35/0.65/1) in a 40 m box that wraps around the camera; wind drifts them, snow wanders. Rain lands as rings on the lake near you. **Reduced motion: no particles at all**, as in Classic.
+- `weatherize(material)` patches every Lambert material in the world (voxels, terrain, skirt, trees, grass, flowers): a shared `uWet` darkens surfaces (more on the tops) while it rains, drying slowly afterwards; a shared `uSnow` (= env.snow, the classic resting level pushed by snowfall) covers upward faces in **half-metre drift cells**, more cells the deeper it is, so it arrives and melts in patches. Deep snow buries the grass and flowers. The cabin roof is its own mesh with **all-sides** snow, because a stepped voxel roof shows its risers from below.
+- Lightning: a bolt every 4–13 s in a storm, sometimes with a second flicker 0.35 s later; the flash lifts the hemisphere light and adds a cool wash in the post pass; thunder follows by distance. **Tested: never more than 3 flashes in any second over 10 simulated minutes; none under reduced motion.**
+- **Bug found:** env's lying snow was seeded from the default latitude (45°N) before the weather arrived, so Jakarta started at 21% snow in October. It is now re-seeded when the real location arrives.
+
+### P5.2 — Inhabitants (done)
+`world/critters3d.js`: populations straight from `season.js`:
+- Fireflies at night (pulse, flare on the music's bass, HDR on the glow layer), butterflies by day over the meadow (colour per insect, wing flap), a few birds crossing high in clear or cloudy weather, and the season's drift (pollen, petals, autumn leaves) on the wind.
+- Everything lives within 22 m of you and respawns as you walk. Rain, snow and storms keep them in. Under reduced motion only the fireflies stay, pulsing in place.
+
+`world/slime.js`: Blip **wanders its stretch of meadow** east of the path, hopping (it only moves while airborne), pausing 2–7 s. It turns to look at you when you are near and **hops away if you come at it fast**. It sleeps by the porch at night and bounces when fed or poked from its panel. Tested: it wandered 2.6 m in 8 s, and running at it made it hop off to 3.2 m.
+
+### P5.3 — Positional audio (done)
+`core/audio.js` gained `enableSpatial`, `setListener`, `setIndoors` (Classic never calls them; everything still runs through the ambience bus, so mixer, volume and mute apply):
+- the **hearth** rumble and its crackle come from a HRTF panner at the fireplace, and in the world the fire crackles on its own (the mixer adds to it);
+- **crickets** chirp from random spots 6–18 m away in the grass;
+- **rain under the roof** turns to a dull drumming (lowpass around 700 Hz).
+
+The listener follows the camera 10× a second. Tested: the context runs, the hearth panner exists, the listener matches the camera, and indoors is detected.
+
+### P5.4 — Offline (done)
+Losing the network thickens the volumetric air (already) **and drains colour by 37%** in the grade, as the classic FogLayer does.
+
+Captures: `p5-1366-{rain,storm-lightning,winter-snow,summer-fireflies,spring-butterflies,offline}.png`. Perf (standard views) is unchanged from P3: all vsync-bound; 1366 cabin 626 calls / 8.6 M triangles.
+
+Bundle: shell **63.4 KB gz**, world **173.1 KB gz** (+11 KB for all of P4 and P5). 86 unit tests, 2 e2e: all pass.
