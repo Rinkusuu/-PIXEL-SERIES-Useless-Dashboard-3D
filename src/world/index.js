@@ -32,6 +32,8 @@ import { Player } from './player.js';
 import { Input } from './input.js';
 import { Hud } from './hud.js';
 import { Watch } from './watch.js';
+import { Photo } from './photo.js';
+import { zen } from '../core/zen.js';
 import { buildObjects } from './objects.js';
 import { closePanels, openPanel, openPocket, panelOpen } from '../ui/panels.js';
 
@@ -71,6 +73,9 @@ export function startWorld(canvas) {
   world.add(player.camera); // the watch hangs off the camera, so the camera must be in the scene
   const watch = new Watch(player.camera, hud);
   bus.on('second', (d) => hud.tickMinute(d));
+  bus.on('zen', (z) => (z.active ? watch.lower() : player.stand())); // Esc ends Zen, and you get up
+  const photo = new Photo(player, col, canvas);
+  bus.on('photo', () => photo.enter());
   // While a panel or the pocket book is open you are reading, not walking: let go of the mouse.
   bus.on('panel', (p) => {
     input.enabled = !p;
@@ -82,6 +87,15 @@ export function startWorld(canvas) {
   const interactables = [
     ...house.interactables,
     ...objects.list.map((o) => ({ object: o.object, label: () => o.label, use: () => openPanel(o.panel) })),
+    // Zen: sit on the porch bench or lie on the flat rock up the hill.
+    ...[[house.bench, house.benchSeat], [props.named.flatRock, props.named.rockSeat]].map(([object, seat]) => ({
+      object,
+      label: () => 'Sit and breathe',
+      use: () => {
+        player.sit(seat);
+        zen.start();
+      },
+    })),
   ];
   const targets = interactables.map((i) => i.object);
   const gazeTargets = [...targets, house.shell];
@@ -140,13 +154,14 @@ export function startWorld(canvas) {
 
     // Intent → the player → the camera.
     const intent = input.consume();
-    player.update(intent, dt, s.motion);
+    if (intent.photo) photo.active ? photo.exit() : photo.enter();
+    if (!photo.update(intent, input.keys, dt)) player.update(intent, dt, s.motion);
     if (player.walked > 4) hud.retireHints();
 
     // What are we looking at?
     ray.setFromCamera(new Vector2(0, 0), player.camera);
     // The cabin's walls are in the test too: the nearest hit must be the thing itself.
-    const hit = player.waking ? null : ray.intersectObjects(gazeTargets, false)[0];
+    const hit = player.waking || photo.active || player.seat ? null : ray.intersectObjects(gazeTargets, false)[0];
     const target = hit && hit.object !== house.shell ? interactables[targets.indexOf(hit.object)] : null;
     hud.setTarget(target);
     if (intent.use && target) target.use();
@@ -189,6 +204,7 @@ export function startWorld(canvas) {
         lamps: lights.airLamps(),
       },
     });
+    photo.afterRender();
 
     // Tier probe: median of the raw frame times.
     if (probe) {

@@ -56,6 +56,7 @@ export class Input {
       if (e.code === 'KeyE' && !e.repeat) this.useQueued = true;
       if (e.code === 'KeyQ' && !e.repeat) this.watchQueued = true;
       if (e.code === 'KeyB' && !e.repeat) this.pocketQueued = true;
+      if (e.code === 'KeyP' && !e.repeat) this.photoQueued = true;
     });
     addEventListener('keyup', (e) => this.keys.delete(e.code));
     addEventListener('blur', () => this.keys.clear());
@@ -170,7 +171,9 @@ export class Input {
       use: this.enabled && this.useQueued,
       watch: this.watchQueued,
       pocket: this.pocketQueued,
+      photo: this.photoQueued,
     };
+    this.photoQueued = false;
     this.watchQueued = false;
     this.pocketQueued = false;
     this.look.dx = this.look.dy = 0;

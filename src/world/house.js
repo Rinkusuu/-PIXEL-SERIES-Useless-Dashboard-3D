@@ -273,10 +273,15 @@ export class House {
     this._box(bed.x + 0.6, loftY + 0.45, bed.z - 0.05, bed.x + 1.1, loftY + 0.6, bed.z + 0.85, grain('#f4efe4', 0.3)); // the pillow
     col.addBox(bed.x - 1.2, bed.z - 0.2, bed.x + 1.2, bed.z + 1.0, loftY, loftY + 0.6);
 
-    // ── The bench on the porch (Zen sits here, in P3) ─────────────────────
+    // ── The bench on the porch: its own mesh, so you can look at it and sit ──
     const b = SPOTS.bench;
-    this._box(b.x - 0.9, f + 0.42, b.z - 0.22, b.x + 0.9, f + 0.48, b.z + 0.22, LOG);
-    for (const lx of [b.x - 0.75, b.x + 0.75]) this._box(lx - 0.05, f, b.z - 0.2, lx + 0.05, f + 0.42, b.z + 0.2, DARK);
+    const bg = new VoxelGrid([b.x - 1, f, b.z - 0.3], [b.x + 1, f + 0.6, b.z + 0.3]);
+    bg.fillBox(b.x - 0.9, f + 0.4, b.z - 0.22, b.x + 0.9, f + 0.5, b.z + 0.22, planks('#9a6a44', 0, 2));
+    for (const lx of [b.x - 0.75, b.x + 0.75]) bg.fillBox(lx - 0.05, f, b.z - 0.2, lx + 0.05, f + 0.4, b.z + 0.2, DARK);
+    this.bench = voxelMesh(bg);
+    this.group.add(this.bench);
+    // Sitting faces north, over the yard and the meadow; standing up puts you back on the porch.
+    this.benchSeat = { x: b.x, z: b.z, y: f + 0.5, yaw: 0, standZ: b.z - 0.7 };
     col.addBox(b.x - 0.9, b.z - 0.22, b.x + 0.9, b.z + 0.22, f, f + 0.5);
   }
 

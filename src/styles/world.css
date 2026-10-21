@@ -232,3 +232,10 @@
 :root[data-mode='3d'][data-overlay] .w3d__tip {
   display: none;
 }
+
+/* Zen and photo mode: nothing between you and the world. */
+:root[data-zen='on'] .w3d,
+:root[data-photo] .w3d,
+:root[data-photo] .app {
+  visibility: hidden;
+}

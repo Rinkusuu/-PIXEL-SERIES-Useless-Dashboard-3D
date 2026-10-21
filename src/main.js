@@ -298,10 +298,10 @@ function wireTopbar({ mode, palette, postcard: savePostcardNow, settings }) {
     onClick: () => settings?.toggle(),
   });
 
-  // The world has no panels to clear yet and no camera to photograph with: in
-  // 3D, Glass and Postcard wait for the pocket book and photo mode (P3).
+  // Glass has nothing to clear in the world (the panels only appear when you
+  // open them), so 3D leaves it out; Postcard there means photo mode.
   tools.append(
-    ...(mode === '3d' ? [season.node, zenBtn.node, worldBtn.node] : [season.node, glassBtn.node, zenBtn.node, postcard.node, modeBtn.node]),
+    ...(mode === '3d' ? [season.node, zenBtn.node, postcard.node, worldBtn.node] : [season.node, glassBtn.node, zenBtn.node, postcard.node, modeBtn.node]),
     paletteBtn.node,
   );
 
@@ -369,7 +369,7 @@ function boot() {
   else startWorld();
 
   const postcard = () => {
-    if (mode !== 'classic') return; // photo mode replaces this in the world (P3)
+    if (mode !== 'classic') return bus.emit('photo'); // in the world, the postcard is a photo you frame yourself
     const s = env.state;
     savePostcard($('#scene'), $('#glow'), {
       caption: s.pal.caption,

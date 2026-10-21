@@ -86,15 +86,15 @@ export function initCommandPalette({ mode, postcard, switchMode, settings }) {
       { icon: '📖', label: 'Open the pocket book', hint: 'every panel at once', run: () => openPocket() },
       ...panelTitles().map((t) => ({ icon: '🪟', label: `Open: ${t}`, hint: 'the panel, over the world', run: () => openPanel(t) })),
     ] : []),
-    ...(mode === '3d' ? [] : [
-      {
-        icon: '🪟',
-        label: store.get('glass') ? 'Frost the glass' : 'Clear the glass',
-        hint: 'see the world through the dashboard',
-        run: () => bus.emit('cmd:glass'),
-      },
-      { icon: '📮', label: 'Save a postcard', hint: 'export the world as a PNG', run: postcard },
-    ]),
+    mode === '3d'
+      ? { icon: '📷', label: 'Photo mode', hint: 'float the camera, frame a postcard', run: postcard }
+      : { icon: '📮', label: 'Save a postcard', hint: 'export the world as a PNG', run: postcard },
+    ...(mode === '3d' ? [] : [{
+      icon: '🪟',
+      label: store.get('glass') ? 'Frost the glass' : 'Clear the glass',
+      hint: 'see the world through the dashboard',
+      run: () => bus.emit('cmd:glass'),
+    }]),
     {
       icon: '🎵', label: audio.playing ? 'Pause music' : 'Play music',
       hint: 'Ambient Loop FM',

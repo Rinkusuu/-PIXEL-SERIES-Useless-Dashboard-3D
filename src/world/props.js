@@ -162,7 +162,9 @@ export function buildProps(col) {
     const fy = blockHeight(f.x, f.z);
     const r = voxelMesh(rock(1.6, 77));
     r.position.set(f.x, fy - 0.2, f.z);
-    add(r);
+    named.flatRock = add(r);
+    // Lying back on the rock, looking west over the lake (positive yaw turns west).
+    named.rockSeat = { x: f.x, z: f.z, y: fy + 0.45, yaw: Math.PI / 2, standZ: f.z };
     col.addSurface(f.x - 1.1, f.z - 1.1, f.x + 1.1, f.z + 1.1, fy + 0.45);
   }
 

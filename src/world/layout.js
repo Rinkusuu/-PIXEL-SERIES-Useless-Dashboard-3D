@@ -192,7 +192,7 @@ function placeLamps() {
       const len = Math.hypot(bx - ax, bz - az);
       for (let d = carry; d < len; d += LAMP_EVERY) {
         const t = d / len;
-        const side = (out.length + p) % 2 ? 1.6 : -1.6; // alternate sides
+        const side = (out.length + p) % 2 ? -1.6 : 1.6; // alternate sides; the first stays out of the bench's view
         const x = ax + (bx - ax) * t + ((bz - az) / len) * side;
         const z = az + (bz - az) * t - ((bx - ax) / len) * side;
         if (!isWater(x, z) && pathDist(x, z) > 1.1) out.push({ x, z });

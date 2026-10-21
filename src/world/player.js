@@ -55,6 +55,24 @@ export class Player {
     return this._wake > 0;
   }
 
+  /** Sit on a seat ({ x, y, z, yaw, standZ }): the camera settles and stays still. */
+  sit(seat) {
+    this.seat = seat;
+    this.target = null;
+    this.vel.set(0, 0);
+    Object.assign(this.pos, { x: seat.x, y: seat.y, z: seat.z, groundY: seat.y });
+    this.yaw = seat.yaw;
+    this.pitch = 0.04;
+  }
+
+  stand() {
+    if (!this.seat) return;
+    const { x, standZ, y } = this.seat;
+    this.seat = null;
+    this.pos.z = standZ;
+    this.pos.y = this.pos.groundY = this.col.groundAt(x, standZ, y + 0.5).y;
+  }
+
   setFov(fov) {
     if (this.camera.fov !== fov) {
       this.camera.fov = fov;
@@ -82,6 +100,13 @@ export class Player {
 
   update(intent, dt, motion) {
     const view = store.get('view');
+
+    // Sitting (Zen): no walking, no looking about. The world moves; you don't.
+    if (this.seat) {
+      this.camera.position.set(this.pos.x, this.pos.y + 0.75, this.pos.z);
+      this.camera.rotation.set(this.pitch, this.yaw, 0);
+      return;
+    }
 
     // ── Look ──────────────────────────────────────────────────────────────
     if (view.snapTurn) {

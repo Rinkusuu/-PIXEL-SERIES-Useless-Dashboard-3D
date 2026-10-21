@@ -82,6 +82,7 @@ class Environment {
       if (typeof w.lat === 'number') {
         this.lat = w.lat;
         this.lon = w.lon;
+        this._seasonClock = 0; // a real latitude can flip the hemisphere: recompute the season now, not in 10 s
       }
       this.place = [w.place, w.region].filter(Boolean).join(', ');
 
