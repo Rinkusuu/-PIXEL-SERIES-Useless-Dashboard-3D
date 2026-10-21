@@ -608,3 +608,29 @@ Per-frame averages (all vsync-bound at 60 fps on this Mac):
 - the §7 A/B performance run (waiting for the go-ahead)
 - a real phone
 - Safari/WebKit has not been tried (Chromium only so far)
+
+---
+
+## P7 — Detail (after the user's review: "kurang detail, dari banyak aspek")
+
+### Decisions (P7 question rounds)
+Everything that was offered was chosen:
+- **Interior:** small things (books, plates, plant, candles, blanket, coat, boots), surfaces with character (varied planks, a patterned rug, ceiling beams, thick window frames), interior light (sun shafts through the windows, dust in the beams, embers), **see-through windows**.
+- **Nature:** tree variety (birch, tall pine, dead tree, bushes, fallen logs), a textured ground (wildflower clusters, pebbles, mushrooms, tall grass at the edges, moss), the lake shore (reeds/cattails, lily pads, shore stones, wet sand), **3D clouds** that follow the weather.
+- **Contents and buildings:** a living yard (vegetable bed, woodpile, washing line, fence, well, cart), paths and signs (stepping stones, a signpost, a bench by the path; dock and bridge with nails, rope, a little boat), small new areas (stone ruins in the forest, a boathouse, a flower patch on the hill), more fauna (fish jumping, rabbits/deer at the forest edge, ducks).
+- **Interaction:** things react (the radio's needle and sound from the radio, a ticking wall clock with real hands, the mirror reflects, the kettle steams), hands visible when using things, world feedback (door and object sounds, footsteps by surface, grass parting as you walk), more to hold (drawers, lamps to switch, sitting on any chair, getting into the boat).
+
+**Process:**
+- Order: cabin → outside → interaction.
+- **Stop after each part** for review.
+- **Visuals first, optimise later.**
+- Each part gets a detailed per-aspect report with before/after captures.
+
+### P7.1 — The cabin, lived in (done)
+`world/interior.js` (new). Every cluster is its own small 2.5 cm grid (one room-sized grid at that resolution would be about 24 M cells), and they are all baked into **one mesh**. `bake()` moved from props.js to voxel.js so both can use it.
+- **Small things:** books on three shelf boards (seeded spines, gaps, gilt bands, the odd one lying down) and jars on the top board. Kitchen: a stack of plates, a loaf on a board, a bowl of apples, three pans on a rail, a wall shelf of jars and bowls. Table: a candle in a holder, a mug, an open book. By the door: a peg rail, coat, hat, boots, a woven mat. Hearth: a log basket, a poker, a mantel with two candles and a small framed picture. A pot plant in the corner and a succulent on the lake windowsill. South wall: a chest of drawers (handles, plates leaning on it), a broom, a painted landscape, a wool basket. Loft: nightstand + lantern, a strapped trunk, a striped rag rug.
+- **Surfaces:** a patterned rug (border, diamonds) replaces the flat one; two ceiling beams; frames and sills on every window; an enamel shade round the lamp bulb (the bulb is smaller now).
+- **Light:** **see-through window glass** by day (12% opacity, rising to 90% and glowing at night); denser air indoors so the volumetric pass catches the window light; flickering candle flames (HDR, they bloom); breathing embers in the hearth (never flashing); fine dust motes by day (still under reduced motion).
+- Collision for the new furniture (coat rail, log basket, plant, chest, wool basket, nightstand, trunk). The walk test still passes (door, yard, ladder, shore, tower), as do 90 unit and 6 e2e tests.
+- **Bug found:** the voxel palette was 8-bit (85 colours at 3 shades each), and the richer cabin overflowed it ("voxel palette is full"). Cells are now 16-bit.
+- Captures: `p7-before-*` / `p7-after-1366-{wake,room-from-door,hearth-corner,kitchen-shelf,loft,room-night}`. Cabin views went from 67–117 to 73–124 draw calls (+5 to 8). World chunk 175.4 → **179.2 KB gz**.

@@ -9,9 +9,8 @@
    ========================================================================== */
 
 import { BoxGeometry, Group, Mesh, MeshBasicMaterial } from 'three';
-import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { BRIDGE, DOCK, LAMPS, SPOTS, TOWER, blockHeight } from './layout.js';
-import { VoxelGrid, grain, planks, courses, voxelMesh } from './voxel.js';
+import { VoxelGrid, bake, grain, planks, courses, voxelMesh } from './voxel.js';
 import { LAMP_GLASS, lampPost, rock } from './models.js';
 import { LAYER_GLOW } from './renderer.js';
 import { rng } from '../core/util.js';
@@ -221,23 +220,6 @@ export function buildProps(col) {
   add(lit);
 
   return { group, lampGlass: [lit], lampMat: glassMat, named };
-}
-
-/** Merge meshes that share a material into one, in world space. */
-function bake(meshes) {
-  const geos = meshes.map((m) => {
-    m.updateMatrixWorld(true);
-    const g = m.geometry.index ? m.geometry.toNonIndexed() : m.geometry.clone();
-    for (const k of Object.keys(g.attributes)) if (!['position', 'normal', 'color'].includes(k)) g.deleteAttribute(k);
-    if (!g.attributes.color) {
-      // Unlit glass has no vertex colours; give it white so the attribute sets match.
-      g.setAttribute('color', new g.attributes.position.constructor(new Float32Array(g.attributes.position.count * 3).fill(1), 3));
-    }
-    return g.applyMatrix4(m.matrixWorld);
-  });
-  const out = new Mesh(mergeGeometries(geos), meshes[0].material);
-  out.castShadow = out.receiveShadow = true;
-  return out;
 }
 
 /** Lamps glow at night; by day the glass is just dull. */

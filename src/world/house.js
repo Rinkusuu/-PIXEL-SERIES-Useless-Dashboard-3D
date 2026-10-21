@@ -49,7 +49,10 @@ export class House {
 
   _mergePanes() {
     const geos = this.panes.map((m) => (m.updateMatrix(), m.geometry.applyMatrix4(m.matrix)));
-    return this._add(new Mesh(mergeGeometries(geos), new MeshBasicMaterial({ color: 0x334455, side: DoubleSide })));
+    // Glass you can see through by day (sunlight and the shafts come in through it); lit and glowing at night.
+    const m = new Mesh(mergeGeometries(geos), new MeshBasicMaterial({ color: 0x334455, side: DoubleSide, transparent: true, depthWrite: false }));
+    m.castShadow = false;
+    return this._add(m);
   }
 
   _box(x0, y0, z0, x1, y1, z1, paint) {
@@ -228,10 +231,9 @@ export class House {
       col.addCircle(5, cz, 0.28, f, f + 0.9);
     }
     this._box(4.98, f + 2.2, 76.58, 5.02, top, 76.62, DARK); // the lamp's cord
-    const bulb = glowBox(4.85, f + 2.05, 76.45, 5.15, f + 2.25, 76.75, 0xffcf7a);
+    const bulb = glowBox(4.95, f + 2.08, 76.55, 5.05, f + 2.16, 76.65, 0xffcf7a); // a small bulb, under the shade interior.js hangs round it
     bulb.castShadow = false;
     this.bulb = this._add(bulb);
-    this._box(3.4, f, 75.4, 6.6, f + 0.1, 77.8, grain('#a85a4a', 0.5)); // the rug: one voxel thick, so it's a step you won't notice
 
     // ── Shelf and kitchen counter, under the loft ─────────────────────────
     // An open shelf: back, two sides, boards. (A solid block swallowed the coin jar.)
@@ -318,9 +320,10 @@ export class House {
     linear(mixRgb([255, 140, 60], [255, 210, 120], flick - 0.7), this.fire.material.color);
 
     // The window you saw from the meadow in the classic scene, lit from inside.
-    const lit = mixRgb(mixRgb(pal.sky[1], [40, 50, 70], 0.55), [255, 200, 120], dark);
+    const lit = mixRgb(mixRgb(pal.sky[1], [200, 225, 240], 0.5), [255, 200, 120], dark);
     for (const p of this.panes) {
       linear(lit, p.material.color);
+      p.material.opacity = 0.12 + dark * 0.78;
       p.layers.set(dark > 0.3 ? LAYER_GLOW : 0);
     }
     linear(mixRgb([120, 110, 90], [255, 207, 122], dark), this.bulb.material.color);

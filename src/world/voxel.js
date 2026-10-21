@@ -3,7 +3,7 @@
    triangles.
 
    A VoxelGrid is a box of cells in world space; each cell holds a palette
-   index (0 = empty). Things are built by filling boxes and shapes, exactly as
+   index (0 = empty, up to 65535). Things are built by filling boxes and shapes, exactly as
    a carpenter would cut them, and the voxel IS the pixel: the grain of a log
    or a plank is a run of slightly different cubes, not a texture.
 
@@ -15,6 +15,7 @@
    ========================================================================== */
 
 import { BufferAttribute, BufferGeometry, Color, Mesh, MeshLambertMaterial } from 'three';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { hash, noise2 } from '../core/util.js';
 
 /* ── The shared palette ────────────────────────────────────────────────────
@@ -31,7 +32,7 @@ const c = new Color();
 export function color(hex) {
   if (byHex.has(hex)) return byHex.get(hex);
   const base = palette.length;
-  if (base + SHADES > 256) throw new Error('voxel palette is full');
+  if (base + SHADES > 65536) throw new Error('voxel palette is full');
   for (const k of [1, 0.88, 1.1]) {
     c.set(hex).multiplyScalar(k);
     palette.push([c.r, c.g, c.b]);
@@ -92,7 +93,7 @@ export class VoxelGrid {
     this.size = size;
     this.origin = min;
     this.dims = [0, 1, 2].map((a) => Math.max(1, Math.ceil((max[a] - min[a]) / size - 1e-6)));
-    this.cells = new Uint8Array(this.dims[0] * this.dims[1] * this.dims[2]);
+    this.cells = new Uint16Array(this.dims[0] * this.dims[1] * this.dims[2]); // a rich world has more than 85 colours
   }
 
   _i(i, j, k) {
@@ -199,7 +200,7 @@ export function mesh(grid) {
               const occ = s1 && s2 ? 0 : 3 - (s1 + s2 + cc);
               ao |= occ << (q * 2);
             }
-            mask[n] = a | (ao << 8);
+            mask[n] = a | (ao << 16);
           }
         }
 
@@ -230,8 +231,8 @@ export function mesh(grid) {
               return [ox + p[0] * size, oy + p[1] * size, oz + p[2] * size];
             };
             const P = [corner(i, j), corner(i + w, j), corner(i + w, j + h), corner(i, j + h)];
-            const ao = [0, 1, 2, 3].map((q) => (key >> (8 + q * 2)) & 3);
-            const rgb = palette[key & 255];
+            const ao = [0, 1, 2, 3].map((q) => (key >> (16 + q * 2)) & 3);
+            const rgb = palette[key & 0xffff];
             const normal = [0, 0, 0];
             normal[d] = s;
 
@@ -273,3 +274,21 @@ export function voxelMesh(grid) {
   m.receiveShadow = true;
   return m;
 }
+
+/** Merge meshes that share a material into one, in world space. */
+export function bake(meshes) {
+  const geos = meshes.map((m) => {
+    m.updateMatrixWorld(true);
+    const g = m.geometry.index ? m.geometry.toNonIndexed() : m.geometry.clone();
+    for (const k of Object.keys(g.attributes)) if (!['position', 'normal', 'color'].includes(k)) g.deleteAttribute(k);
+    if (!g.attributes.color) {
+      // Unlit glass has no vertex colours; give it white so the attribute sets match.
+      g.setAttribute('color', new BufferAttribute(new Float32Array(g.attributes.position.count * 3).fill(1), 3));
+    }
+    return g.applyMatrix4(m.matrixWorld);
+  });
+  const out = new Mesh(mergeGeometries(geos), meshes[0].material);
+  out.castShadow = out.receiveShadow = true;
+  return out;
+}
+

@@ -25,6 +25,7 @@ import { Lights } from './lights.js';
 import { buildTerrain, buildSkirt } from './terrain.js';
 import { Water } from './water.js';
 import { House } from './house.js';
+import { buildInterior } from './interior.js';
 import { buildProps, updateLamps } from './props.js';
 import { Forest } from './forest.js';
 import { Meadow, LAYER_GRASS } from './meadow.js';
@@ -75,6 +76,8 @@ export function startWorld(canvas) {
   water.addTo(world);
   const house = new House(col);
   world.add(house.group);
+  const interior = buildInterior(col);
+  world.add(...interior.group);
   const props = buildProps(col);
   world.add(props.group);
   const forest = new Forest(col);
@@ -309,6 +312,7 @@ export function startWorld(canvas) {
     pipeline.post.post.uniforms.uDesat.value = s.offline * 0.37;
     water.update(s);
     house.update(s, dt);
+    interior.update(s);
     updateLamps(props, lights.dark);
     meadow.update(s, player.camera.position, tier.fogFar);
     forest.update(player.camera.position, tier.fogFar);
@@ -334,7 +338,8 @@ export function startWorld(canvas) {
       outline: target?.object && !panelOpen() ? target.object : null,
       // How thick the air is: a clear noon is nearly clean; fog, weather and losing the network thicken it.
       air: {
-        density: 0.004 + s.pal.fogAmount * 0.035 + (s.weather === 'fog' ? 0.03 : 0) + s.offline * 0.03,
+        // Indoors the air is closer and dustier: it's what makes the window light visible as shafts.
+        density: 0.004 + s.pal.fogAmount * 0.035 + (s.weather === 'fog' ? 0.03 : 0) + s.offline * 0.03 + (weather.indoors ? 0.05 : 0),
         lamps: lights.airLamps(),
       },
     });
