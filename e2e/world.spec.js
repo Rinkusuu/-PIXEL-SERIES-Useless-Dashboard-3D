@@ -56,3 +56,19 @@ test('the pocket book holds every panel', async ({ page }) => {
   await page.keyboard.press('KeyB');
   await expect(page.locator('html')).not.toHaveAttribute('data-overlay', /.*/);
 });
+
+test('keyboard only: Tab finds the corkboard, E opens it, the screen reader hears it', async ({ page }) => {
+  // Stand in the middle of the room on the floor (not the loft), facing the hearth wall.
+  await page.evaluate(() => window.__world.teleport(8.5, 79.5, -Math.PI / 2, 0, 1.5));
+  const said = page.locator('.w3d .sr-only[aria-live="polite"]');
+  let found = false;
+  for (let i = 0; i < 12 && !found; i++) {
+    await page.keyboard.press('Tab');
+    await page.waitForTimeout(450); // the camera eases round
+    found = /corkboard/i.test(await said.innerText());
+  }
+  expect(found).toBe(true);
+  await expect(page.locator('.w3d__tip')).toContainText(/corkboard/i);
+  await page.keyboard.press('KeyE');
+  await expect(page.locator('.grid > .panel[data-focus]')).toHaveAttribute('aria-label', 'Words of Someone');
+});

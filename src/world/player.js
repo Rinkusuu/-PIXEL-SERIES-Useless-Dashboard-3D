@@ -55,6 +55,17 @@ export class Player {
     return this._wake > 0;
   }
 
+  /** Turn to face a direction: eased with motion, at once without (the caller fades). */
+  lookToward(yaw, pitch, instant) {
+    // Take the short way round.
+    const d = Math.atan2(Math.sin(yaw - this.yaw), Math.cos(yaw - this.yaw));
+    if (instant) {
+      this.yaw += d;
+      this.pitch = pitch;
+      this._turn = null;
+    } else this._turn = { yaw: this.yaw + d, pitch };
+  }
+
   /** Sit on a seat ({ x, y, z, yaw, standZ }): the camera settles and stays still. */
   sit(seat) {
     this.seat = seat;
@@ -114,6 +125,16 @@ export class Player {
     }
 
     // ── Look ──────────────────────────────────────────────────────────────
+    // A Tab turn eases you round, and the mouse can take over at any moment.
+    if (this._turn) {
+      if (intent.look.dx || intent.look.dy) this._turn = null;
+      else {
+        const k = 1 - Math.exp(-dt * 10);
+        this.yaw += (this._turn.yaw - this.yaw) * k;
+        this.pitch += (this._turn.pitch - this.pitch) * k;
+        if (Math.abs(this._turn.yaw - this.yaw) < 0.002) this._turn = null;
+      }
+    }
     if (view.snapTurn) {
       this._snapAcc += intent.look.dx;
       while (this._snapAcc > SNAP * 0.6) { this.yaw -= SNAP; this._snapAcc -= SNAP * 0.6; }

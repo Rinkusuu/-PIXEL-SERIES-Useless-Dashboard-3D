@@ -36,6 +36,7 @@ import { Photo } from './photo.js';
 import { zen } from '../core/zen.js';
 import { buildObjects, buildRod } from './objects.js';
 import { Ripples } from './ripples.js';
+import { orderByBearing, step } from './tabcycle.js';
 import { Fishing } from './fishing3d.js';
 import { Stones } from './stones3d.js';
 import { Stargaze } from './stargaze.js';
@@ -215,6 +216,7 @@ export function startWorld(canvas) {
   player.wake(motion.enabled);
   hud.wakeUp();
 
+  let tabSel = null;
   const fogColor = new Color();
   const clear = new Color();
   let gradeClock = 0;
@@ -228,6 +230,31 @@ export function startWorld(canvas) {
     if (intent.photo) photo.active ? photo.exit() : photo.enter();
     if (!photo.update(intent, input.keys, dt)) player.update(intent, dt, s.motion);
     if (player.walked > 4) hud.retireHints();
+
+    // Tab: the next usable thing within reach that you can actually see, left to right.
+    if (intent.tab && !player.seat && !photo.active && !(fishing.active || stones.active)) {
+      const eye = player.camera.position;
+      const seen = interactables
+        .map((i) => ({ i, c: new Box3().setFromObject(i.object).getCenter(new Vector3()) }))
+        .filter(({ i, c }) => {
+          ray.set(eye, c.clone().sub(eye).normalize());
+          const first = ray.intersectObjects(gazeTargets, false)[0];
+          return first?.object === i.object; // in reach to use, and nothing in the way
+        })
+        .map(({ i, c }) => ({ i, c, x: c.x, z: c.z }));
+      const order = orderByBearing(seen, player.pos, player.yaw);
+      const now = order.findIndex((o) => o.i === tabSel);
+      const next = order[step(now, order.length, intent.tab === 'back')];
+      if (!next) hud.announce('Nothing to use within reach. Walk closer to something.');
+      else {
+        tabSel = next.i;
+        const d = next.c.clone().sub(eye);
+        const instant = !s.motion;
+        player.lookToward(Math.atan2(-d.x, -d.z), Math.atan2(d.y, Math.hypot(d.x, d.z)), instant);
+        if (instant) hud.blink(); // reduced motion: a fade, not a turn
+        hud.announce(`${next.i.label()}. Press E to use it.`);
+      }
+    }
 
     // What are we looking at? Hands that are busy (a rod, a stone) own E.
     const busy = fishing.active || stones.active;

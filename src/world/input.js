@@ -57,6 +57,11 @@ export class Input {
       if (e.code === 'KeyQ' && !e.repeat) this.watchQueued = true;
       if (e.code === 'KeyB' && !e.repeat) this.pocketQueued = true;
       if (e.code === 'KeyP' && !e.repeat) this.photoQueued = true;
+      // Tab walks through usable things — unless focus is on a real control (the topbar), where Tab is the browser's.
+      if (e.key === 'Tab' && (document.activeElement === document.body || document.activeElement === this.canvas)) {
+        e.preventDefault();
+        this.tabQueued = e.shiftKey ? 'back' : 'next';
+      }
     });
     addEventListener('keyup', (e) => {
       this.keys.delete(e.code);
@@ -179,7 +184,9 @@ export class Input {
       watch: this.watchQueued,
       pocket: this.pocketQueued,
       photo: this.photoQueued,
+      tab: this.enabled ? this.tabQueued : null,
     };
+    this.tabQueued = null;
     this.photoQueued = false;
     this.watchQueued = false;
     this.pocketQueued = false;

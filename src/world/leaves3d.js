@@ -38,7 +38,8 @@ export class Leaves {
   }
 
   update(env, dt) {
-    const rate = 0.4 * (env.season?.leafFall ?? 1) * (0.5 + env.wind);
+    // Reduced motion: no new leaves (as in the classic meadow, nothing travels across the frame).
+    const rate = env.motion ? 0.4 * (env.season?.leafFall ?? 1) * (0.5 + env.wind) : 0;
     this._spawn += rate * dt;
     for (const l of this.leaves) {
       if (this._spawn < 1) break;

@@ -47,6 +47,17 @@ export class Hud {
     if (this.timer.textContent !== t) this.timer.textContent = t;
   }
 
+  /** A short dip to black: how reduced motion changes where you look. */
+  blink() {
+    this.fade.removeAttribute('data-done');
+    this.fade.style.transition = 'none';
+    this.fade.style.opacity = '0.6';
+    requestAnimationFrame(() => {
+      this.fade.style.transition = 'opacity 0.25s linear';
+      this.fade.style.opacity = '0';
+    });
+  }
+
   wakeUp() {
     requestAnimationFrame(() => this.fade.setAttribute('data-done', ''));
   }

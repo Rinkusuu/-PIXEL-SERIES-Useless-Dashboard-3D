@@ -552,3 +552,8 @@ Merge static meshes by material; **A/B perf measurement deferred** (the user wil
 - **Shadow map at 20 Hz** (every third frame). The sun and moon move once a second; a swinging door or a hopping slime at 20 Hz is still smooth.
 - **Indoors, the lake is flat water.** From inside the cabin it is only a glimpse through the door, so it no longer gets a second render of the whole world.
 - Result, averaged per frame at 1366 high: **cabin 120, meadow 135, lake 86 draw calls** (target < 300).
+
+### P6.2 — Keyboard and reduced motion (done)
+- **Tab / Shift+Tab** (when focus isn't on a real control such as the topbar) cycles through the usable things **you can see and reach to use** (the same 3.2 m as the centre dot; walls block), ordered **left to right** by bearing (`world/tabcycle.js`, 4 tests). The camera eases round to face the choice (the mouse can interrupt). Under **reduced motion** it turns at once behind a short dip to black instead. The screen reader hears "<thing>. Press E to use it."; with nothing in reach it says to walk closer.
+- §8 reduced motion audit in the world: head bob never; Tab turns and the watch fade; no precipitation, critters (fireflies stay, pulsing in place), shooting stars or **falling leaves** (that one was missing until now); lightning never flashes; the grass, water rings, door swing and slime hold still.
+- E2E: **keyboard only** — Tab until the corkboard is announced, then E opens "Words of Someone". 3 e2e in total, all pass.
