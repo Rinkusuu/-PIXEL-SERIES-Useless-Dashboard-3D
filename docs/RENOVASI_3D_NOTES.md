@@ -405,3 +405,34 @@ Done:
 - Fixes: the shelf was a solid block (it swallowed the coin jar) and is now an open frame. `teleport` and `lookAt` debug helpers added.
 
 Left for next session: P3.2 captures + perf pass; P3.3 (Zen on the bench/rock, photo mode); P3.4 (Playwright e2e: out the door → glance at the watch → open the corkboard).
+
+### P3.2 — finished
+Captures:
+- World views: `p3-{1366,390}-{cabin,door-open,meadow-noon,lake-dusk,hill-night,yard-night}`
+- Features: `p3-1366-watch`, `p3-1366-outline-coins`, `p3-1366-panel-corkboard`, `p3-1366-pocket-book`
+
+Perf: within a few calls of P2.7, all views vsync-bound at 60 fps.
+
+| View | calls | triangles |
+|---|---|---|
+| 1366 cabin | 668 | 8.6 M |
+| 390 cabin | 410 | 4.7 M |
+
+Bundle: shell **62.7 KB gz**, world **161.7 KB gz** (+5 KB: objects, watch, photo, outline).
+
+### P3.3 — Zen and photo mode (done)
+- **Zen:** the porch bench is now its own mesh, as is the flat rock on the hill ("Sit and breathe"). E sits you down (eye 0.75 m above the seat, camera still, HUD hidden, watch lowered) and starts the existing 4-7-8 Zen. Esc ends Zen through `zen-ui`, and you stand up beside the seat. The first lamp post moved to the other side of the path, out of the bench's view.
+- **Photo mode** (`world/photo.js`): P, the topbar Postcard button or ⌘K "Photo mode". A free camera tethered within 10 m of the player and kept above the ground; WASD, R/F for up and down, mouse to look. The HUD and page chrome hide. Enter saves the frame through the classic `savePostcard` (caption bar + border), and Esc leaves. Sample: `p3-postcard-export.png`.
+- **Bugs fixed along the way (Classic too):**
+  - The "Wish You Were Here" achievement was never unlocked anywhere. `savePostcard` now unlocks it.
+  - A long caption and a long place name printed over each other on the postcard. The lettering now shrinks to fit.
+  - Postcard frame and lettering are now sized from the output height, so a 1× native-resolution 3D postcard wears the same border as the 3× classic one.
+  - The season used the default latitude for up to 10 s after the weather arrived (Jakarta read "Autumn" in October). It is now recomputed when a real latitude arrives.
+- Known and accepted: the photo camera has no collision and can pass through walls ("kamera bebas").
+
+### P3.4 — E2E (done)
+`npm run e2e` (Playwright, builds and serves on :4174):
+1. Facing the door: the tooltip says "Open the door" → E → hold W 2.5 s → z < 70 (outside). Q → the screen reader hears "Your watch, time: hh:mm" → Q → weather. At the corkboard: the tooltip says "Corkboard" → E → the "Words of Someone" panel is focused and visible → Esc closes it.
+2. B opens the pocket book with all 15 panels visible → B closes it.
+
+Both pass (10 s). Mobile e2e remains for P6, along with the §10 criterion "every panel from the desktop and mobile".
