@@ -83,6 +83,7 @@ class Environment {
         this.lat = w.lat;
         this.lon = w.lon;
         this._seasonClock = 0; // a real latitude can flip the hemisphere: recompute the season now, not in 10 s
+        this._snow = null; // and the lying snow was guessed for the wrong hemisphere: start it again from the real one
       }
       this.place = [w.place, w.region].filter(Boolean).join(', ');
 

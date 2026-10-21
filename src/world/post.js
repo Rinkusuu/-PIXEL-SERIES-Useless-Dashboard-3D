@@ -28,6 +28,8 @@ const POST_FS = /* glsl */ `
   uniform sampler2D tMask;
   uniform vec2 uTexel;
   uniform vec3 uOutline;
+  uniform float uFlash;  // lightning
+  uniform float uDesat;  // offline: the colour drains out of the world
   varying vec2 vUv;
 
   vec3 aces(vec3 x) { // Narkowicz's fit
@@ -41,7 +43,9 @@ const POST_FS = /* glsl */ `
   void main() {
     vec3 c = texture2D(tScene, vUv).rgb;
     c += texture2D(tFog, vUv).rgb * uFog;
+    c += vec3(0.75, 0.8, 1.0) * uFlash * 0.45;
     c = aces(c * uExposure);
+    c = mix(c, vec3(dot(c, vec3(0.2126, 0.7152, 0.0722))), uDesat);
     c = c * uGain + uLift * (1.0 - c); // lift the shadows toward the sky, tint the highlights
     vec3 bloom = texture2D(tBloom, vUv).rgb * uBloom;
     c = 1.0 - (1.0 - c) * (1.0 - clamp(bloom, 0.0, 1.0));
@@ -94,6 +98,8 @@ export class Post {
         tMask: { value: null },
         uTexel: { value: new Vector2() },
         uOutline: { value: new Color() },
+        uFlash: { value: 0 },
+        uDesat: { value: 0 },
       },
       depthTest: false,
       depthWrite: false,

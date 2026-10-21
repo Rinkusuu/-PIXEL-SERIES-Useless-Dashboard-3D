@@ -12,7 +12,7 @@
 
 import { BoxGeometry, DoubleSide, Group, Mesh, MeshBasicMaterial, PlaneGeometry } from 'three';
 import { CABIN, SPOTS } from './layout.js';
-import { VoxelGrid, blocks, courses, grain, planks, voxelMesh } from './voxel.js';
+import { VoxelGrid, blocks, courses, grain, planks, voxelMaterial, voxelMesh } from './voxel.js';
 import { LAYER_GLOW, linear } from './renderer.js';
 import { clamp, mixRgb } from '../core/util.js';
 
@@ -113,8 +113,10 @@ export class House {
     );
   }
 
-  /** Two roof slopes as voxel terraces, with an eave overhang and a ridge cap. */
+  /** Two roof slopes as voxel terraces, with an eave overhang and a ridge cap: its own mesh, so snow can lie on all of it. */
   _roof() {
+    const grid = this.grid;
+    this.grid = this.roofGrid = new VoxelGrid([CABIN.x0 - 1, CABIN.floorY + CABIN.wallH - 1, CABIN.porch.z0 - 0.5], [CABIN.x1 + 1, CABIN.ridgeY + 0.5, CABIN.z1 + 1.1]);
     const top = CABIN.floorY + CABIN.wallH;
     const over = 0.7;
     const run = CABIN.ridgeZ - CABIN.z0;
@@ -128,6 +130,10 @@ export class House {
       ROOF,
     );
     this._box(CABIN.x0 - 0.6, CABIN.ridgeY, CABIN.ridgeZ - 0.15, CABIN.x1 + 0.6, CABIN.ridgeY + 0.3, CABIN.ridgeZ + 0.15, DARK);
+    this.grid = grid;
+    this.roof = voxelMesh(this.roofGrid);
+    this.roof.material = voxelMaterial.clone(); // weatherize()d with sides by the world
+    this.group.add(this.roof);
   }
 
   _build() {

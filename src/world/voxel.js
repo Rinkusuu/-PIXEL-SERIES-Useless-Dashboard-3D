@@ -263,11 +263,12 @@ export function mesh(grid) {
   return g;
 }
 
-const material = new MeshLambertMaterial({ vertexColors: true });
+/** The one material every voxel model shares (so weather can coat them all at once). */
+export const voxelMaterial = new MeshLambertMaterial({ vertexColors: true });
 
 /** A grid as a ready mesh: one shared material, casting and receiving shadow. */
 export function voxelMesh(grid) {
-  const m = new Mesh(mesh(grid), material);
+  const m = new Mesh(mesh(grid), voxelMaterial);
   m.castShadow = true;
   m.receiveShadow = true;
   return m;
