@@ -102,8 +102,13 @@ export class Player {
     const view = store.get('view');
 
     // Sitting (Zen): no walking, no looking about. The world moves; you don't.
+    // Lying back on the rock (stargazing) you may look around the sky.
     if (this.seat) {
-      this.camera.position.set(this.pos.x, this.pos.y + 0.75, this.pos.z);
+      if (this.seat.look) {
+        this.yaw -= intent.look.dx;
+        this.pitch = clamp(this.pitch - intent.look.dy, -0.2, 1.56); // lying down, you can see the zenith
+      }
+      this.camera.position.set(this.pos.x, this.pos.y + (this.seat.eye ?? 0.75), this.pos.z);
       this.camera.rotation.set(this.pitch, this.yaw, 0);
       return;
     }

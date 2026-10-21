@@ -194,7 +194,8 @@ export class Sky {
     const field = starField();
     const sp = new Float32Array(field.length * 3);
     const attr = (k) => new BufferAttribute(new Float32Array(field.map((s) => +s[k])), 1);
-    field.forEach((s, i) => skyDir(s.alt, s.az).multiplyScalar(BODY_R).toArray(sp, i * 3));
+    this.starDirs = field.map((s) => skyDir(s.alt, s.az)); // unit vectors, for picking and drawing lines
+    this.starDirs.forEach((d, i) => d.clone().multiplyScalar(BODY_R).toArray(sp, i * 3));
     const sg = new BufferGeometry();
     sg.setAttribute('position', new BufferAttribute(sp, 3));
     sg.setAttribute('aSize', attr('size'));
