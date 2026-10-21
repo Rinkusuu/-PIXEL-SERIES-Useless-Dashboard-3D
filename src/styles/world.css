@@ -20,7 +20,7 @@
 .w3d {
   position: fixed;
   inset: 0;
-  z-index: calc(var(--z-app) - 1);
+  z-index: calc(var(--z-app) + 1); /* above the page footer, so the touch buttons are not covered; it lets every other pointer through */
   pointer-events: none;
   font-family: var(--font-ui);
   color: var(--amb-ink);

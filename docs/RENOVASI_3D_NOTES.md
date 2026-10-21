@@ -562,3 +562,12 @@ Merge static meshes by material; **A/B perf measurement deferred** (the user wil
 Checked as a cold open in Chromium: first visit installs the service worker (the precache list is generated from the whole bundle, so the lazy 3D chunk is in it — confirmed in Cache Storage); then **offline, a reload opens straight into the 3D world** with no errors (`p6-1366-offline-cold-open.png`).
 
 **Bug found by it:** with no location (offline, never online), the default 45°N in late October gives a little lying snow, and the snow/wet shader put it on **every** upward face — including the cabin floor, the loft and, through the all-sides roof, the ceiling. Now nothing inside the cabin's box (floor to ridge) gets snow or wet; the roof's own snow lies only on its top faces and on the risers that face **away from the ridge** (the ones facing in are the ceiling).
+
+### P6.4 — Every panel, desktop and phone (done)
+`e2e/panels.spec.js` (spec §10):
+- **Desktop:** for all 14 objects, stand by it, wait until the tooltip names it, press E, and check that its panel is focused and visible; Esc closes it. Pockets opens from the pocket book (B).
+- **Phone (390×844, touch):** the same 14 through the on-screen **Use** button, Pockets through 📖, and the watch through ⌚ (the screen reader hears the time).
+
+**Bug found by it:** on phones the page footer sat above the HUD layer and **covered the Use button**. The HUD now sits above the page; it lets every pointer through except its own buttons. (The debug teleport also clears a pending tap-to-walk.)
+
+E2E total: 6 tests, all pass (≈18 s).

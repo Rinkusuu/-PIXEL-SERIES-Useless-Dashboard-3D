@@ -389,6 +389,7 @@ export function startWorld(canvas) {
       teleport(x, z, yaw = player.yaw, pitch = 0, feet = 99) {
         player.pos.x = x;
         player.pos.z = z;
+        player.target = null; // a pending tap-to-walk would carry you off again
         // feet: the highest floor to consider (99 = the top one; 1.5 = the cabin floor, not the loft)
         player.pos.y = player.pos.groundY = col.groundAt(x, z, feet).y;
         player.yaw = yaw;
