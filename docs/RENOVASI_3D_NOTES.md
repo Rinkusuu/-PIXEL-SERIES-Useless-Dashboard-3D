@@ -495,3 +495,16 @@ One tiny fix: a constellation name cut at 16 characters could end in a space; it
   - A tap (including the one that picks up the rod or stone) is no longer a cast or throw.
 
 Captures: `p4-1366-{fishing-cast,fishing-bite,stones,constellation,leaves,bucket,best-skip-buoy}.png`. Tests: 84 unit, 2 e2e, all pass.
+
+---
+
+## P5 — Weather, seasons, inhabitants
+
+### Decisions (P5 question round)
+- **Rain & snow:** voxel particles in a ~40 m box that follows you, plus a **wet look** (darker ground and roofs) and rain rings on the lake.
+- **Lying snow (env.snow):** a white layer on **upward-facing surfaces**, in blocky drifts that grow with env.snow (so it settles and melts as in Classic); grass tips and the cabin roof whiten too.
+- **Lightning:** a sky flash plus a brief burst of light, **at most 3 flashes a second**, thunder delayed by distance. Reduced motion: no flash, thunder only.
+- **Slime:** **wanders the meadow only** (does not follow), reacts when you come close, still reacts to feeding/poking from its panel.
+- **Positional audio:** Web Audio panners on the real sources (hearth, crickets in the meadow, rain on the roof). Still behind the mixer and mute; sound stays opt-in.
+- **Inhabitants:** fireflies (summer nights), butterflies (spring/summer days), birds (by day, high up), pollen/petals/blown leaves by season.
+- **Offline:** volumetric air thickens **and colour drains** (about 37%, as in Classic).
