@@ -260,6 +260,7 @@ export function startWorld(canvas) {
     traces.update(s);
     ripples.update(dt, s.motion);
     weather.update(s, player.camera.position, dt, tier.name === 'low' ? 0.35 : tier.name === 'medium' ? 0.65 : 1);
+    water.setIndoors(weather.indoors);
     critters.update(s, player.camera.position, dt);
     slime.update(s, dt);
     earClock -= dt;
@@ -342,6 +343,8 @@ export function startWorld(canvas) {
       input,
       weather,
       weatherUniforms,
+      water,
+      lights,
       audio,
       stones,
       stargaze,
@@ -374,13 +377,13 @@ export function startWorld(canvas) {
         player.yaw = Math.atan2(-x, -z);
         player.pitch = Math.asin(y / l);
       },
-      /** Draw calls and triangles for one whole frame (all passes), and the internal size. */
+      /** Draw calls and triangles per frame (all passes), averaged over 30 frames, and the buffer size. */
       async stats() {
         const info = pipeline.renderer.info;
         info.autoReset = false;
         info.reset();
-        await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
-        const out = { calls: info.render.calls, triangles: info.render.triangles, size: `${pipeline.W}×${pipeline.H}` };
+        for (let i = 0; i < 30; i++) await new Promise((r) => requestAnimationFrame(r));
+        const out = { calls: Math.round(info.render.calls / 30), triangles: Math.round(info.render.triangles / 30), size: `${pipeline.W}×${pipeline.H}` };
         info.autoReset = true;
         return out;
       },

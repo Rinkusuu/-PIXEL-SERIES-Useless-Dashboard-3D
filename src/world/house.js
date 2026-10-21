@@ -11,6 +11,7 @@
    ========================================================================== */
 
 import { BoxGeometry, DoubleSide, Group, Mesh, MeshBasicMaterial, PlaneGeometry } from 'three';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { CABIN, SPOTS } from './layout.js';
 import { VoxelGrid, blocks, courses, grain, planks, voxelMaterial, voxelMesh } from './voxel.js';
 import { LAYER_GLOW, linear } from './renderer.js';
@@ -41,8 +42,14 @@ export class House {
     // One grid for the whole cabin, 10 cm voxels: one mesh, one draw call.
     this.grid = new VoxelGrid([CABIN.x0 - 1, CABIN.groundY - 0.5, CABIN.porch.z0 - 0.5], [CABIN.x1 + 1.5, CABIN.ridgeY + 1.3, CABIN.z1 + 1.1]);
     this._build();
+    this.panes = [this._mergePanes()];
     this.shell = voxelMesh(this.grid); // also what blocks your gaze: you can't use things through a wall
     this.group.add(this.shell);
+  }
+
+  _mergePanes() {
+    const geos = this.panes.map((m) => (m.updateMatrix(), m.geometry.applyMatrix4(m.matrix)));
+    return this._add(new Mesh(mergeGeometries(geos), new MeshBasicMaterial({ color: 0x334455, side: DoubleSide })));
   }
 
   _box(x0, y0, z0, x1, y1, z1, paint) {
@@ -83,7 +90,7 @@ export class House {
   /** A window pane. By day it shows a pale sky; after dark it glows (see update). */
   _pane(o, at, axis) {
     const g = new PlaneGeometry(o.b - o.a, o.hi - o.lo);
-    const m = new Mesh(g, new MeshBasicMaterial({ color: 0x334455, side: DoubleSide }));
+    const m = new Mesh(g);
     const c = (o.a + o.b) / 2;
     const y = (o.lo + o.hi) / 2;
     if (axis === 'x') m.position.set(c, y, at);
@@ -91,7 +98,7 @@ export class House {
       m.position.set(at, y, c);
       m.rotation.y = Math.PI / 2;
     }
-    this.panes.push(this._add(m));
+    this.panes.push(m); // merged into one mesh after the walls are built (they always glow together)
     // A cross of glazing bars, so it reads as a window and not a screen.
     if (axis === 'x') {
       this._box(c - 0.05, o.lo, at - 0.05, c + 0.05, o.hi, at + 0.05, DARK);

@@ -9,6 +9,7 @@
    ========================================================================== */
 
 import { BoxGeometry, Group, Mesh, MeshBasicMaterial } from 'three';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { BRIDGE, DOCK, LAMPS, SPOTS, TOWER, blockHeight } from './layout.js';
 import { VoxelGrid, grain, planks, courses, voxelMesh } from './voxel.js';
 import { LAMP_GLASS, lampPost, rock } from './models.js';
@@ -21,6 +22,10 @@ const ROOF = courses('#7a4a3a', 2);
 export function buildProps(col) {
   const group = new Group();
   const add = (m) => (group.add(m), m);
+  // Decor nobody looks at by name — the dock, the bridge, the tower, the boulders,
+  // the lamp posts — is baked into one mesh at the end: one draw instead of twenty-odd, per pass.
+  const decor = [];
+  const bakeLater = (m) => (decor.push(m), m);
   const glass = [];
   const named = {}; // things the dashboard objects reuse (objects.js)
 
@@ -35,7 +40,7 @@ export function buildProps(col) {
         g.fillBox(px - 0.1, -2.5, z - 0.1, px + 0.1, y + 0.3, z + 0.1, DARK);
       }
     }
-    add(voxelMesh(g));
+    bakeLater(voxelMesh(g));
     col.addSurface(x - w / 2, z1, x + w / 2, z0, y);
   }
 
@@ -55,7 +60,7 @@ export function buildProps(col) {
     const m = voxelMesh(g);
     m.position.set(x, 0, z);
     m.rotation.y = yaw;
-    add(m);
+    bakeLater(m);
     // The surface is a turned rectangle: test it in the deck's own frame.
     const local = (px, pz) => {
       const dx = px - x;
@@ -118,7 +123,7 @@ export function buildProps(col) {
       g.fill([x + sx - 0.05, foot - 0.3, z0], [x + sx + 0.05, dy + 1.1, z1], (px, py, pz) => Math.abs(py - stairY(pz) - 0.4) < 0.5, DARK);
       col.addSeg(x + sx, z0, x + sx, z1, gy - 1, dy + 1.2);
     }
-    add(voxelMesh(g));
+    bakeLater(voxelMesh(g));
     col.addSurface(x - 0.6, z0, x + 0.6, z1, (px, pz) => Math.max(blockHeight(px, pz), stairY(pz)));
   }
 
@@ -188,7 +193,7 @@ export function buildProps(col) {
     const b = voxelMesh(rock(br, seed * 97));
     const by = blockHeight(bx, bz);
     b.position.set(bx, by - 0.1, bz);
-    add(b);
+    bakeLater(b);
     col.addCircle(bx, bz, br * 0.85, -Infinity, by + br * 0.6);
   }
 
@@ -200,16 +205,39 @@ export function buildProps(col) {
     const y = blockHeight(l.x, l.z);
     const post = postTpl.clone(); // shares geometry and material
     post.position.set(l.x, y, l.z);
-    add(post);
+    bakeLater(post);
     const g = new Mesh(glassGeo, glassMat);
     g.position.set(l.x, y + (LAMP_GLASS.y0 + LAMP_GLASS.y1) / 2, l.z);
-    add(g);
     glass.push(g);
     col.addCircle(l.x, l.z, 0.15);
     l.y = y + LAMP_GLASS.y0 + 0.15; // where the light hangs
   }
 
-  return { group, lampGlass: glass, lampMat: glassMat, named };
+  add(bake(decor));
+  // All the lamp glass lights up together, so it is one mesh too.
+  const lit = bake(glass);
+  lit.material = glassMat;
+  lit.castShadow = false;
+  add(lit);
+
+  return { group, lampGlass: [lit], lampMat: glassMat, named };
+}
+
+/** Merge meshes that share a material into one, in world space. */
+function bake(meshes) {
+  const geos = meshes.map((m) => {
+    m.updateMatrixWorld(true);
+    const g = m.geometry.index ? m.geometry.toNonIndexed() : m.geometry.clone();
+    for (const k of Object.keys(g.attributes)) if (!['position', 'normal', 'color'].includes(k)) g.deleteAttribute(k);
+    if (!g.attributes.color) {
+      // Unlit glass has no vertex colours; give it white so the attribute sets match.
+      g.setAttribute('color', new g.attributes.position.constructor(new Float32Array(g.attributes.position.count * 3).fill(1), 3));
+    }
+    return g.applyMatrix4(m.matrixWorld);
+  });
+  const out = new Mesh(mergeGeometries(geos), meshes[0].material);
+  out.castShadow = out.receiveShadow = true;
+  return out;
 }
 
 /** Lamps glow at night; by day the glass is just dull. */

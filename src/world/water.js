@@ -104,9 +104,21 @@ export class Water {
   /** 0 = flat water (low tier), else the reflection texture's scale of the frame. */
   setReflect(scale) {
     this.scale = scale;
-    this.mirror.visible = scale > 0;
-    this.flat.visible = scale === 0;
+    this._show();
     this.resize();
+  }
+
+  /** Indoors the lake is a glimpse through a doorway: flat water is plenty, and a whole second render is not. */
+  setIndoors(on) {
+    if (this.indoors === on) return;
+    this.indoors = on;
+    this._show();
+  }
+
+  _show() {
+    const reflect = this.scale > 0 && !this.indoors;
+    this.mirror.visible = reflect;
+    this.flat.visible = !reflect;
   }
 
   resize() {

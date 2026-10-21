@@ -537,3 +537,18 @@ Losing the network thickens the volumetric air (already) **and drains colour by 
 Captures: `p5-1366-{rain,storm-lightning,winter-snow,summer-fireflies,spring-butterflies,offline}.png`. Perf (standard views) is unchanged from P3: all vsync-bound; 1366 cabin 626 calls / 8.6 M triangles.
 
 Bundle: shell **63.4 KB gz**, world **173.1 KB gz** (+11 KB for all of P4 and P5). 86 unit tests, 2 e2e: all pass.
+
+---
+
+## P6 — Tidy up
+
+### Decisions (P6 question round)
+Merge static meshes by material; **A/B perf measurement deferred** (the user will say when the laptop may be loud); keyboard: **Tab cycles nearby visible objects and turns the camera to them**; README: **a new section with honest numbers, in English**.
+
+### P6.1 — Draw calls (done)
+- **A measuring bug first:** `__world.stats()` reset the counters and waited two rAFs, which spans **about two frames** (checked: 288 calls that way against a 30-frame average of 135 for the same view). **Every calls/triangles figure in these notes before this point is roughly 2× too high.** `stats()` now averages over 30 frames.
+- Decor that nobody targets (dock, bridge, tower, 6 boulders, 10 lamp posts) is **baked into one mesh**, the 10 lamp glasses into another, and the 5 window panes into one.
+- Meadow tiles went from 25 to 40 m and forest tiles from 32 to 48 m. The grass draw radius now adds half a tile's diagonal instead of a whole tile.
+- **Shadow map at 20 Hz** (every third frame). The sun and moon move once a second; a swinging door or a hopping slime at 20 Hz is still smooth.
+- **Indoors, the lake is flat water.** From inside the cabin it is only a glimpse through the door, so it no longer gets a second render of the whole world.
+- Result, averaged per frame at 1366 high: **cabin 120, meadow 135, lake 86 draw calls** (target < 300).

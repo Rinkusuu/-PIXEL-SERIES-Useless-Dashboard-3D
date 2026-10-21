@@ -43,7 +43,7 @@ export function plantForest() {
   return trees.concat(random);
 }
 
-const TILE = 32;
+const TILE = 48;
 const NEAR = 45; // metres: closer than this, the full 25 cm voxel tree; further, the 50 cm one
 
 export class Forest {

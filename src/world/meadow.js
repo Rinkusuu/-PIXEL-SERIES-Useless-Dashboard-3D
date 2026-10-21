@@ -17,7 +17,7 @@ import { tuftGeometry } from './models.js';
 import { VoxelGrid, color, mesh } from './voxel.js';
 import { fbm2, rng } from '../core/util.js';
 
-const TILE = 25;
+const TILE = 40; // big enough to keep the draw count down, small enough to cull
 const MAX_TUFTS = 45000; // voxel tufts are chunkier than blades; fewer read as just as thick
 const FLOWER_EVERY = 22;
 export const LAYER_GRASS = 2; // not drawn in the occluder pass or the reflection
@@ -134,7 +134,7 @@ export class Meadow {
     this.uniforms.uWind.value = 0.25 + env.wind * 0.9;
     this.uniforms.uMotion.value = env.motion; // reduced motion stills the grass, as in the classic meadow
     // Grass past ~70 m is a colour, not a shape: the ground's own green carries it.
-    const reach = (Math.min(70, far * 0.55) + TILE) ** 2;
+    const reach = (Math.min(70, far * 0.55) + TILE * 0.71) ** 2; // + half a tile's diagonal
     for (const t of this.tiles) {
       const dx = t.cx - camPos.x;
       const dz = t.cz - camPos.z;
