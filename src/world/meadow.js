@@ -34,7 +34,7 @@ function flowerGeometry() {
 }
 
 /** Bend tufts in the wind: injected into Lambert so they keep lighting, fog and shadows. */
-function windy(material, uniforms) {
+export function windy(material, uniforms) {
   material.onBeforeCompile = (shader) => {
     Object.assign(shader.uniforms, uniforms);
     shader.vertexShader = shader.vertexShader

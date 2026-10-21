@@ -634,3 +634,22 @@ Everything that was offered was chosen:
 - Collision for the new furniture (coat rail, log basket, plant, chest, wool basket, nightstand, trunk). The walk test still passes (door, yard, ladder, shore, tower), as do 90 unit and 6 e2e tests.
 - **Bug found:** the voxel palette was 8-bit (85 colours at 3 shades each), and the richer cabin overflowed it ("voxel palette is full"). Cells are now 16-bit.
 - Captures: `p7-before-*` / `p7-after-1366-{wake,room-from-door,hearth-corner,kitchen-shelf,loft,room-night}`. Cabin views went from 67–117 to 73–124 draw calls (+5 to 8). World chunk 175.4 → **179.2 KB gz**.
+
+### P7.2 — Nature (done)
+- **Tree variety** (`models.js`, `forest.js`): five new voxel species next to the pine and the round tree: a **birch** (white trunk with dark marks, airy crown), a **tall pine** (9.4 m, for the deep forest), a **dead tree** (grey, bare branches), a **bush** (low, some with red berries) and a **fallen log** (moss on top, ring-marked ends). Species are weighted by place: deep forest leans to tall pines, the edges and the odd meadow tree to birches and bushes. Logs block along their length (a low segment), bushes with a small circle. Near/far LOD, the shuffle, tiers and colliders all carry over.
+- **Groundcover** (`groundcover.js`, new): 11 small seeded voxel kinds, instanced per 48 m tile, hidden past ~75 m, thinned by tier:
+  - pebbles (along paths and scattered)
+  - red and brown mushroom clusters (forest floor, in patches)
+  - three palettes of **wildflower clumps** (warm, cool, red; clumped by noise so they grow in drifts)
+  - **tall grass** where the meadow meets the trees and the shore (it sways in the wind)
+  - **reeds and cattails** at the waterline (they sway)
+  - **lily pads**, some flowering
+  - **shore stones**
+- **Forest floor**: patchy **moss** in the damp and **leaf litter** in the dry (terrain colour).
+- **3D clouds** (`clouds3d.js`, new): three blocky cumulus shapes, up to 102 instances in the sky pass above the ridges, drifting with the real wind (held still under reduced motion). Cover and greyness follow the weather: a few puffs when clear, a low grey deck in rain or storm, almost none in fog. They take the palette's light and hide the stars and the sun.
+- Fixes during the pass:
+  - Reeds were far too dense, with fat cattail heads. They are thinner now, with slim heads.
+  - The `forest-edge` view stood inside a tree; it now faces the lookout stair.
+  - The first `p7n-before` captures were mistakenly taken from the new build. They were retaken from the P7.1 build (`git stash`).
+- Captures: `p7n-before-*` / `p7n-after-1366-{cabin,door-open,meadow-noon,lake-dusk,hill-night,yard-night,forest-edge,lake-shore}`.
+- Cost ("visuals first", as agreed): 1366 high went from 69–151 to **172–434 draw calls**, and from 1.5–4.5 M to **2.6–6.8 M triangles**. Still at the 60 fps vsync on this Mac. World chunk 179.2 → **182.3 KB gz**. 90 unit tests, 6 e2e and the walk test all pass.

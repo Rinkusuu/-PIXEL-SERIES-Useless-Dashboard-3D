@@ -16,6 +16,8 @@ const C = {
   grass: new Color('#5f9a4a'),
   grassLight: new Color('#86b85e'),
   forestFloor: new Color('#3f6a3a'),
+  moss: new Color('#5a8a3a'),
+  leafLitter: new Color('#6a5a3a'),
   path: new Color('#9a7a52'),
   sand: new Color('#cdbb8a'),
   mud: new Color('#6b5a48'),
@@ -29,7 +31,14 @@ function groundColor(x, z, y, out) {
   const n = fbm2(x * 0.08, z * 0.08, 2, 5);
 
   out.copy(C.grass).lerp(C.grassLight, n * 0.8);
-  out.lerp(C.forestFloor, forestDensity(x, z) * 0.7);
+  const fd = forestDensity(x, z);
+  out.lerp(C.forestFloor, fd * 0.7);
+  // Under the trees the floor is patchy: moss in the damp, leaf litter in the dry.
+  if (fd > 0.3) {
+    const m = fbm2(x * 0.15, z * 0.15, 2, 23);
+    if (m > 0.6) out.lerp(C.moss, (m - 0.6) * 2.2);
+    else if (m < 0.35) out.lerp(C.leafLitter, (0.35 - m) * 1.8 * fd);
+  }
   if (r > WALK_RADIUS + 2) out.lerp(C.forestFloor, Math.min(1, (r - WALK_RADIUS - 2) / 8)); // under the boundary forest
 
   const p = pathDist(x, z);

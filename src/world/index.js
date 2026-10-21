@@ -28,7 +28,9 @@ import { House } from './house.js';
 import { buildInterior } from './interior.js';
 import { buildProps, updateLamps } from './props.js';
 import { Forest } from './forest.js';
-import { Meadow, LAYER_GRASS } from './meadow.js';
+import { Meadow, LAYER_GRASS, windy } from './meadow.js';
+import { Groundcover } from './groundcover.js';
+import { Clouds } from './clouds3d.js';
 import { Player } from './player.js';
 import { Input } from './input.js';
 import { Hud } from './hud.js';
@@ -84,6 +86,9 @@ export function startWorld(canvas) {
   forest.addTo(world);
   const meadow = new Meadow();
   meadow.addTo(world);
+  const ground = new Groundcover((m) => windy(m, meadow.uniforms));
+  ground.addTo(world);
+  const clouds = new Clouds(sky.scene);
 
   const player = new Player(col);
   water.watch(player.camera, LAYER_GRASS);
@@ -140,7 +145,7 @@ export function startWorld(canvas) {
 
   // ── Weather, seasons, inhabitants (P5) ──────────────────────────────────
   const weather = new Weather(world, ripples);
-  for (const m of new Set([voxelMaterial, terrain.material, skirt.material, forest.tiles[0].near.pine.material, ...meadow.tiles.flatMap((t) => [t.grass.material, t.flowers.material])])) weatherize(m);
+  for (const m of new Set([voxelMaterial, terrain.material, skirt.material, forest.tiles[0].near.pine.material, ...meadow.tiles.flatMap((t) => [t.grass.material, t.flowers.material]), ground.material, ground.windMaterial])) weatherize(m);
   weatherize(house.roof.material, { sides: true });
   const critters = new Critters(world);
   const slime = new Slime(objects.list.find((o) => o.id === 'slime').object, player);
@@ -191,6 +196,7 @@ export function startWorld(canvas) {
     water.setReflect(tier.reflect);
     forest.setDensity(tier.trees);
     meadow.setDensity(tier.grass);
+    ground.setDensity(Math.max(0.3, tier.grass));
     world.fog.far = tier.fogFar;
     world.fog.near = tier.fogFar * 0.2;
     if (recompile) world.traverse((o) => o.material && (o.material.needsUpdate = true));
@@ -316,6 +322,8 @@ export function startWorld(canvas) {
     updateLamps(props, lights.dark);
     meadow.update(s, player.camera.position, tier.fogFar);
     forest.update(player.camera.position, tier.fogFar);
+    ground.update(player.camera.position);
+    clouds.update(s, dt);
     linear(mixRgb(s.pal.sky[2], s.pal.fog, 0.5), fogColor);
     world.fog.color.copy(fogColor);
     linear(s.pal.sky[2], clear);

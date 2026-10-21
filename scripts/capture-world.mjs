@@ -19,6 +19,8 @@ const VIEWS = [
   { name: 'lake-dusk', hour: 18.7, at: [-40, -9, 0.414, 0.04] },
   { name: 'hill-night', hour: 22.5, at: [78, -17, 1.4, 0.22] },
   { name: 'yard-night', hour: 21.5, at: [14, 56, 2.8, 0.05] },
+  { name: 'forest-edge', hour: 10, at: [25, -76, 0, 0.12] },
+  { name: 'lake-shore', hour: 9, at: [-14, 8, 0.9, -0.15] },
 ];
 
 const browser = await chromium.launch({ args: ['--use-angle=metal', '--enable-gpu', '--ignore-gpu-blocklist'] });
