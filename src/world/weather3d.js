@@ -11,14 +11,21 @@
    thunder still comes, late, by distance.
    ========================================================================== */
 
-import { BoxGeometry, InstancedMesh, MeshBasicMaterial, Object3D } from 'three';
+import { BoxGeometry, InstancedMesh, MeshBasicMaterial, Object3D, Vector3 } from 'three';
 import { audio } from '../core/audio.js';
 import { bus } from '../core/bus.js';
 import { CABIN, isWater } from './layout.js';
 import { clamp } from '../core/util.js';
 
 /** Shared by every material that wears weather: change once, everything updates. */
-export const weatherUniforms = { uSnow: { value: 0 }, uWet: { value: 0 } };
+export const weatherUniforms = {
+  uSnow: { value: 0 },
+  uWet: { value: 0 },
+  // Under the cabin's roof it neither snows nor rains: the floor, the loft and the furniture stay dry.
+  uDryMin: { value: new Vector3(CABIN.x0, CABIN.floorY - 0.2, CABIN.z0) },
+  uDryMax: { value: new Vector3(CABIN.x1, CABIN.ridgeY, CABIN.z1) }, // up to the ridge: the loft rail stays dry too
+  uRidgeZ: { value: CABIN.ridgeZ },
+};
 
 /**
  * Teach a Lambert material to wear snow and wetness. Chains any shader patch
@@ -46,17 +53,20 @@ export function weatherize(material, { sides = false } = {}) {
         vWN = normalize(mat3(modelMatrix) * wwn);`
       );
     shader.fragmentShader = shader.fragmentShader
-      .replace('#include <common>', '#include <common>\nuniform float uSnow;\nuniform float uWet;\nvarying vec3 vWP;\nvarying vec3 vWN;')
+      .replace('#include <common>', '#include <common>\nuniform float uSnow;\nuniform float uWet;\nuniform vec3 uDryMin;\nuniform vec3 uDryMax;\nuniform float uRidgeZ;\nvarying vec3 vWP;\nvarying vec3 vWN;')
       .replace(
         '#include <color_fragment>',
         `#include <color_fragment>
-        // A stepped voxel roof shows its risers from below: there, every face but the underside holds snow.
-        float up = ${sides ? 'step(-0.5, vWN.y)' : 'smoothstep(0.35, 0.6, vWN.y)'};
+        // A stepped voxel roof shows its risers from below: there, the risers that face OUT (away from
+        // the ridge) hold snow too. The ones facing in are the ceiling, seen from the loft.
+        float up = ${sides ? 'max(step(0.5, vWN.y), step(abs(vWN.y), 0.5) * step(0.0, vWN.z * (vWP.z - uRidgeZ)))' : 'smoothstep(0.35, 0.6, vWN.y)'};
+        vec3 inD = step(uDryMin, vWP) * step(vWP, uDryMax) * ${sides ? '0.0' : '1.0'}; // the roof is the roof: it is never 'inside'
+        up *= 1.0 - inD.x * inD.y * inD.z;
         // Drifts in half-metre cells: deeper snow covers more of them, so it
         // settles in patches and melts back in patches, never as a fade.
         float n = fract(sin(dot(floor(vWP.xz * 2.0), vec2(12.9898, 78.233))) * 43758.5453);
         float cover = up * step(n, uSnow * 1.25 - 0.12);
-        diffuseColor.rgb *= 1.0 - uWet * 0.3 * (0.4 + 0.6 * up);
+        diffuseColor.rgb *= 1.0 - uWet * 0.3 * (0.4 + 0.6 * up) * (1.0 - inD.x * inD.y * inD.z);
         diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.9, 0.93, 0.98), cover);
         #ifdef USE_INSTANCING
           // Grass and flowers (instanced, normals straight up): deep snow buries them to the tips.
