@@ -653,3 +653,17 @@ Everything that was offered was chosen:
   - The first `p7n-before` captures were mistakenly taken from the new build. They were retaken from the P7.1 build (`git stash`).
 - Captures: `p7n-before-*` / `p7n-after-1366-{cabin,door-open,meadow-noon,lake-dusk,hill-night,yard-night,forest-edge,lake-shore}`.
 - Cost ("visuals first", as agreed): 1366 high went from 69–151 to **172–434 draw calls**, and from 1.5–4.5 M to **2.6–6.8 M triangles**. Still at the 60 fps vsync on this Mac. World chunk 179.2 → **182.3 KB gz**. 90 unit tests, 6 e2e and the walk test all pass.
+
+### P7 review round 1 (user feedback on P7.1/P7.2) — fixes
+| Feedback | Cause | Fix |
+|---|---|---|
+| "tangga aneh" | slanted rails built from 10 cm cubes came out as staircases; fat rungs | ladder built upright in its own 2.5 cm grid, then the **mesh** is leaned; slim rails and rungs every 32 cm. Collision unchanged |
+| "kotak-kotak di tekstur blinking tiap gerak" | very likely the sun's shadow swimming: the shadow camera follows the player, but the map was only redrawn every 3rd frame (P6.1) and not texel-aligned | shadow camera **snapped to whole shadow-map texels** in light space; the map is redrawn at once whenever that snapped position or the sun direction changes (else at 20 Hz as before). *Not provable from still screenshots: needs a recheck by eye* |
+| "tiang horizontal penyangga lampu weird" | free-floating tie beams; the lamp cord went up through one | beams now sit on **corbels** at the walls; the lamp hangs on a chain from the beam's underside |
+| "lantai 1 dan 2 kurang furnish" | — | ground floor: a **rocking chair** by the lake window (checked cushion, blanket), a **reading corner** (armchair, footstool, side table, floor lamp), a firewood stack, a tall kitchen cupboard, herbs drying, a patchwork quilt. Loft: a **writing desk** (papers, books, pen, lamp) + chair with a jumper, a low chest with a plant, a gable bookshelf, a hanging planter. All with collision |
+| snow screenshot: "putih semua, susah lihat" | flat paper-white over everything; grass painted white poking out as stripes; risers not covered so every contour was a green line | snow is a **soft blue-grey with grain and wind ridges**; **paths stay clear** and the forest floor gets less (a per-column `aSnowMask`); grass, flowers, mushrooms and pebbles are **buried** (shortened, then gone) instead of whitened; the ground's risers wear snow too |
+| "tekstur kotak-kotak … jangan terlalu blocky" | 0.5 m columns, 0.25 m steps | **0.25 m columns, 0.125 m steps** (terrain 1.07 M triangles, built in ~3.2 s) + a 12.5 cm per-cell shade on every top so it reads as grass and soil; softer riser shading |
+| "lapangan kebanyakan rumput" | 45 k tufts | 27 k tufts; buildings come in P7.3 |
+| "awan kurang merata" | random azimuths → clumps | **golden-angle** azimuths (any first n clouds are evenly spread), shapes interleaved; a little more cover when clear |
+
+Tests: the old walk script lived in a deleted scratchpad, so it is now `e2e/walk.spec.js` (door open/shut, ladder, shore, tower). **10 e2e + 90 unit tests pass.**

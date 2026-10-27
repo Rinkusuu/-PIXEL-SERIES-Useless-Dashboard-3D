@@ -18,7 +18,7 @@ import { VoxelGrid, color, mesh } from './voxel.js';
 import { fbm2, rng } from '../core/util.js';
 
 const TILE = 40; // big enough to keep the draw count down, small enough to cull
-const MAX_TUFTS = 45000; // voxel tufts are chunkier than blades; fewer read as just as thick
+const MAX_TUFTS = 27000; // voxel tufts are chunkier than blades; fewer read as just as thick
 const FLOWER_EVERY = 22;
 export const LAYER_GRASS = 2; // not drawn in the occluder pass or the reflection
 

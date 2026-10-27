@@ -45,8 +45,10 @@ export class Clouds {
       return m;
     });
     const r = rng(404);
-    this.clouds = Array.from({ length: MAX * SHAPES }, () => ({
-      az: r() * Math.PI * 2,
+    // Golden-angle azimuths: any first n clouds are spread evenly round the sky,
+    // so a thin cover is a few clouds everywhere, not a clump on one side.
+    this.clouds = Array.from({ length: MAX * SHAPES }, (_, i) => ({
+      az: i * 2.399963 + (r() - 0.5) * 0.3,
       dist: 520 + r() * 520,
       h: 230 + r() * 170,
       scale: 5 + r() * 5,
@@ -58,7 +60,7 @@ export class Clouds {
   }
 
   update(env, dt) {
-    const want = { clear: 0.18, cloudy: 0.75, rain: 1, storm: 1, snow: 0.85, fog: 0.08 }[env.weather] ?? 0.3;
+    const want = { clear: 0.3, cloudy: 0.75, rain: 1, storm: 1, snow: 0.85, fog: 0.08 }[env.weather] ?? 0.3;
     if (this.cover === null) this.cover = want;
     this.cover += (want - this.cover) * (1 - Math.exp(-dt * 0.15));
     const grey = { rain: 0.55, storm: 0.7, snow: 0.25, cloudy: 0.2 }[env.weather] ?? 0;
@@ -75,7 +77,7 @@ export class Clouds {
     this.shapes.forEach((m, s) => {
       m.count = n;
       for (let i = 0; i < n; i++) {
-        const c = this.clouds[s * MAX + i];
+        const c = this.clouds[i * SHAPES + s]; // interleaved, so every shape takes its share of each sector
         c.az += drift * dt * 60 * (600 / c.dist);
         // Heavier weather lowers the deck.
         o.position.set(Math.sin(c.az) * c.dist, c.h - grey * 80, -Math.cos(c.az) * c.dist);

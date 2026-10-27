@@ -22,7 +22,7 @@ const C = {
   sand: new Color('#cdbb8a'),
   mud: new Color('#6b5a48'),
 };
-const SIDE = 0.78; // walls catch less sky than tops: a cheap, constant occlusion
+const SIDE = 0.9; // walls catch less sky than tops: a cheap, constant occlusion
 
 /** The colour of the ground at a point. */
 function groundColor(x, z, y, out) {
@@ -60,6 +60,7 @@ export function buildTerrain() {
   const n = Math.round((MAP_HALF * 2) / BLOCK);
   const H = new Float32Array(n * n);
   const K = new Uint32Array(n * n); // packed quantised colour, for merging
+  const M = new Uint8Array(n * n); // snow mask ×4: 0 path, 2 under trees, 4 open ground
   const cols = new Map(); // packed → [r, g, b]
   const tmp = new Color();
   for (let j = 0; j < n; j++) {
@@ -72,21 +73,26 @@ export function buildTerrain() {
       const rgb = [q(tmp.r), q(tmp.g), q(tmp.b)];
       const key = (rgb[0] * LEVELS) | ((rgb[1] * LEVELS) << 8) | ((rgb[2] * LEVELS) << 16);
       cols.set(key, rgb);
-      K[j * n + i] = key;
+      // Paths stay trodden clear; trees hold some snow off the forest floor.
+      const mask = pathDist(x, z) < 1.0 ? 0 : forestDensity(x, z) > 0.45 ? 2 : 4;
+      M[j * n + i] = mask;
+      K[j * n + i] = key * 8 + mask; // runs merge only where the mask agrees too
     }
   }
 
   const pos = [];
   const nor = [];
   const col = [];
+  const msk = [];
   const idx = [];
   // Four corners, counter-clockwise seen from the normal's side.
-  const quad = (a, b, c2, d, normal, rgb, k = 1) => {
+  const quad = (a, b, c2, d, normal, rgb, k = 1, m = 4) => {
     const base = pos.length / 3;
     for (const p of [a, b, c2, d]) {
       pos.push(p[0], p[1], p[2]);
       nor.push(normal[0], normal[1], normal[2]);
       col.push(rgb[0] * k, rgb[1] * k, rgb[2] * k);
+      msk.push(m / 4);
     }
     idx.push(base, base + 1, base + 2, base, base + 2, base + 3);
   };
@@ -101,13 +107,13 @@ export function buildTerrain() {
       const key = K[j * n + i];
       let w = 1;
       while (i + w < n && H[j * n + i + w] === h && K[j * n + i + w] === key) w++;
-      quad([X(i), h, Z(j + 1)], [X(i + w), h, Z(j + 1)], [X(i + w), h, Z(j)], [X(i), h, Z(j)], [0, 1, 0], cols.get(key));
+      quad([X(i), h, Z(j + 1)], [X(i + w), h, Z(j + 1)], [X(i + w), h, Z(j)], [X(i), h, Z(j)], [0, 1, 0], cols.get(key >> 3), 1, key & 7);
       i += w;
     }
     // Walls where neighbours differ, and down to the floor at the map's edge.
     for (let i = 0; i < n; i++) {
       const h = H[j * n + i];
-      const rgb = cols.get(K[j * n + i]);
+      const rgb = cols.get(K[j * n + i] >> 3);
       const east = i + 1 < n ? H[j * n + i + 1] : FLOOR;
       const west = i > 0 ? H[j * n + i - 1] : FLOOR;
       const south = j + 1 < n ? H[(j + 1) * n + i] : FLOOR;
@@ -124,6 +130,7 @@ export function buildTerrain() {
   g.setAttribute('position', new BufferAttribute(new Float32Array(pos), 3));
   g.setAttribute('normal', new BufferAttribute(new Float32Array(nor), 3));
   g.setAttribute('color', new BufferAttribute(new Float32Array(col), 3));
+  g.setAttribute('aSnowMask', new BufferAttribute(new Float32Array(msk), 1));
   g.setIndex(new BufferAttribute(pos.length / 3 > 65535 ? new Uint32Array(idx) : new Uint16Array(idx), 1));
   g.computeBoundingSphere();
 

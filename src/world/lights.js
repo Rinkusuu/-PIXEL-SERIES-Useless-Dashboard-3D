@@ -11,7 +11,7 @@
    second, to the posts nearest you, so a dozen lamps cost six lights.
    ========================================================================== */
 
-import { Color, DirectionalLight, HemisphereLight, Object3D, PointLight } from 'three';
+import { Color, DirectionalLight, HemisphereLight, Object3D, PointLight, Vector3 } from 'three';
 import { linear } from './renderer.js';
 import { CABIN, LAMPS } from './layout.js';
 import { clamp, mixRgb } from '../core/util.js';
@@ -44,6 +44,12 @@ export class Lights {
     this._assign = 0;
 
     this._c = new Color();
+    this._r = new Vector3();
+    this._u = new Vector3();
+    this._f = new Vector3();
+    this._up = new Vector3(0, 1, 0);
+    this._lastDir = new Vector3();
+    this.shadowDirty = true;
   }
 
   addTo(scene) {
@@ -78,8 +84,22 @@ export class Lights {
     const useSun = sunUp > 0 || moonUp === 0;
     const dir = useSun ? sky.sunDir : sky.moonDir;
 
-    this.target.position.copy(focus);
-    this.key.position.copy(focus).addScaledVector(dir, 120);
+    // Stabilised shadows: the shadow camera follows you, but only in whole
+    // shadow-map texels (measured across the light's own view), so the edges of
+    // every shadow stay put while you walk instead of crawling and flickering.
+    const cam = this.key.shadow.camera;
+    const texel = (cam.right - cam.left) / this.key.shadow.mapSize.x;
+    const right = this._r.crossVectors(dir, this._up).normalize();
+    const upv = this._u.crossVectors(right, dir).normalize();
+    const snapped = this._f.copy(focus);
+    const a = right.dot(focus);
+    const b = upv.dot(focus);
+    snapped.addScaledVector(right, Math.round(a / texel) * texel - a).addScaledVector(upv, Math.round(b / texel) * texel - b);
+    // Anything that changes the shadow picture means it must be redrawn now, not in three frames.
+    this.shadowDirty = !snapped.equals(this.target.position) || !dir.equals(this._lastDir);
+    this._lastDir.copy(dir);
+    this.target.position.copy(snapped);
+    this.key.position.copy(snapped).addScaledVector(dir, 120);
     if (useSun) {
       linear(mixRgb(pal.sun, pal.glow, 0.35), this.key.color);
       this.key.intensity = 3.2 * sunUp * (0.35 + pal.lum * 0.65);

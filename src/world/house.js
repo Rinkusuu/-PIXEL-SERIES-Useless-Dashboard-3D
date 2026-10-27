@@ -230,8 +230,7 @@ export class House {
       this._box(4.75, f, cz - 0.2, 5.25, f + 0.42, cz + 0.2, DARK);
       col.addCircle(5, cz, 0.28, f, f + 0.9);
     }
-    this._box(4.98, f + 2.2, 76.58, 5.02, top, 76.62, DARK); // the lamp's cord
-    const bulb = glowBox(4.95, f + 2.08, 76.55, 5.05, f + 2.16, 76.65, 0xffcf7a); // a small bulb, under the shade interior.js hangs round it
+        const bulb = glowBox(4.95, f + 2.08, 76.55, 5.05, f + 2.16, 76.65, 0xffcf7a); // a small bulb, under the shade interior.js hangs round it
     bulb.castShadow = false;
     this.bulb = this._add(bulb);
 
@@ -259,21 +258,21 @@ export class House {
       for (let px = a + 0.05; px < b; px += 0.6) this._box(px - 0.03, loftY, rz - 0.03, px + 0.03, loftY + 0.9, rz + 0.03, DARK);
       col.addSeg(a, rz, b, rz, loftY - 0.1, loftY + 1.2);
     }
-    // Ladder: two rails and rungs, from the floor up over the loft edge.
+    // Ladder: built upright in its own fine grid (2.5 cm), then the whole thing
+    // leaned against the loft edge. Leaning the mesh, not the voxels, keeps the
+    // rails straight: slanted rails built from 10 cm cubes came out as staircases.
     const lift = loftY - f;
     const runZ = lad.z1 - lad.z0;
     const climb = lift + 0.9;
-    for (const sx of [gap0 + 0.05, gap1 - 0.05]) {
-      // A slanted rail: every voxel within reach of the line from floor to loft edge.
-      this.grid.fill([sx - 0.05, f, lad.z0], [sx + 0.05, f + climb, lad.z1], (px, py, pz) => {
-        const t = (pz - lad.z0) / runZ;
-        return Math.abs(py - (f + t * climb)) < 0.09;
-      }, DARK);
-    }
-    for (let k = 1; k <= 8; k++) {
-      const t = k / 9;
-      this._box(gap0 + 0.05, f + t * climb - 0.05, lad.z0 + t * runZ - 0.05, gap1 - 0.05, f + t * climb + 0.05, lad.z0 + t * runZ + 0.05, DARK);
-    }
+    const len = Math.hypot(climb, runZ);
+    const hw = lad.w / 2;
+    const lg = new VoxelGrid([-hw, 0, -0.05], [hw, len, 0.05], 0.025);
+    for (const sx of [-hw, hw - 0.075]) lg.fillBox(sx, 0, -0.05, sx + 0.075, len, 0.025, grain('#6a4a30', 0.3));
+    for (let y = 0.3; y < len - 0.2; y += 0.32) lg.fillBox(-hw + 0.075, y, -0.025, hw - 0.075, y + 0.05, 0.025, grain('#7a5a40', 0.3));
+    const ladder = voxelMesh(lg);
+    ladder.position.set(lad.x, f, lad.z0);
+    ladder.rotation.x = Math.atan2(runZ, climb);
+    this.group.add(ladder);
     col.addSurface(gap0, lad.z0, gap1, lad.z1, (x, z) => f + clamp((z - lad.z0) / runZ, 0, 1) * lift);
     col.addSeg(gap0, lad.z0, gap0, lad.z1, f + 0.1, loftY + 1.2);
     col.addSeg(gap1, lad.z0, gap1, lad.z1, f + 0.1, loftY + 1.2);

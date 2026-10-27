@@ -110,13 +110,13 @@ export function buildInterior(col) {
   }));
 
   // ── The lamp over the table: an enamel shade round the bulb ──
-  add(cluster([4.7, f + 2.05, 76.35], [5.3, f + 2.45, 76.85], (g) => {
+  add(cluster([4.7, f + 2.05, 76.35], [5.3, f + 2.8, 76.85], (g) => {
     g.fill([4.7, f + 2.12, 76.35], [5.3, f + 2.4, 76.85], (px, py, pz) => {
       const r = Math.hypot(px - 5, pz - 76.6);
       const outer = 0.07 + (f + 2.4 - py) * 0.75; // a cone opening downwards
       return r < outer && r > outer - 0.035;
     }, color('#3a5a4a'));
-    g.fillBox(4.975, f + 2.35, 76.575, 5.025, f + 2.45, 76.625, color('#2a2a30'));
+    g.fillBox(4.9875, f + 2.4, 76.5875, 5.0125, f + 2.78, 76.6125, color('#2a2a30')); // the chain, up to the beam's underside
   }));
 
   // ── The south wall under the loft: a chest of drawers, a broom, a picture, a basket ──
@@ -233,8 +233,13 @@ export function buildInterior(col) {
       return diamond < 0.08 ? color('#d8b878') : (Math.floor((dx + dz) * 4) % 2 ? color('#a85a4a') : color('#94493c'));
     });
   }));
+  // Two tie beams across the room, resting on corbels at the walls; the lamp's
+  // chain hangs from the second one, so nothing passes through a beam.
   for (const bz of [74.6, 76.6]) {
-    add(cluster([x0, f + 2.8, bz - 0.15], [x1, f + 3.05, bz + 0.15], (g) => g.fillBox(x0, f + 2.82, bz - 0.12, x1, f + 3.02, bz + 0.12, grain('#5e4030', 0.4))));
+    add(cluster([x0, f + 2.55, bz - 0.2], [x1, f + 3.05, bz + 0.2], (g) => {
+      g.fillBox(x0, f + 2.78, bz - 0.12, x1, f + 3.0, bz + 0.12, grain('#5e4030', 0.4));
+      for (const cx of [x0 + 0.1, x1 - 0.35]) g.fillBox(cx, f + 2.58, bz - 0.1, cx + 0.25, f + 2.78, bz + 0.1, grain('#4e3426', 0.3)); // corbels
+    }));
   }
   // Frames and sills on the inside of every window (the openings house.js cut).
   const frame = grain('#5e4030', 0.3);
@@ -267,6 +272,118 @@ export function buildInterior(col) {
   col.addBox(6.0, 81.5, 7.2, 82.2, loftY, loftY + 0.55);
   add(cluster([SPOTS.bed.x - 1.4, loftY, 79.1], [SPOTS.bed.x + 1.0, loftY + 0.03, 80.3], (g) => {
     g.fillBox(SPOTS.bed.x - 1.3, loftY, 79.2, SPOTS.bed.x + 0.9, loftY + 0.025, 80.2, (i, j, k) => color(['#6a86b8', '#c8a0d8', '#e8d8a0', '#8ab08a'][(k >> 2) % 4])); // a striped rag rug
+  }));
+
+  // ════ More furnishing (P7.1 review: "lantai 1 dan 2 masih kurang furnish") ════
+
+  /** A chair with arms and a cushion, facing +z (turned by building it mirrored when needed). */
+  const armchair = (g, cx, cz, face, fabric) => {
+    const s = face; // +1 faces south, -1 faces north
+    const wood = grain('#5e4030', 0.3);
+    g.fillBox(cx - 0.4, f, cz - 0.38, cx + 0.4, f + 0.42, cz + 0.38, wood); // base
+    g.fillBox(cx - 0.36, f + 0.42, cz - 0.34, cx + 0.36, f + 0.52, cz + 0.34, grain(fabric, 0.4)); // seat cushion
+    const bz = cz - s * 0.34;
+    g.fillBox(cx - 0.4, f + 0.42, Math.min(bz, bz - s * 0.12), cx + 0.4, f + 1.0, Math.max(bz, bz - s * 0.12), grain(fabric, 0.4)); // back
+    for (const ax of [cx - 0.4, cx + 0.3]) g.fillBox(ax, f + 0.42, cz - 0.38, ax + 0.1, f + 0.68, cz + 0.38, wood); // arms
+  };
+
+  // ── Ground floor: a rocking chair by the lake window ──
+  add(cluster([-0.2, f, 77.2], [1.4, f + 1.2, 78.9], (g) => {
+    const cx = 0.6;
+    const cz = 78.05;
+    const wood = grain('#7a5030', 0.3);
+    for (const rx of [cx - 0.32, cx + 0.28]) {
+      g.fill([rx, f, cz - 0.55], [rx + 0.05, f + 0.15, cz + 0.55], (px, py, pz) => Math.abs(py - f - 0.12 * ((pz - cz) / 0.55) ** 2) < 0.03, wood); // curved rockers
+      g.fillBox(rx, f + 0.05, cz - 0.3, rx + 0.05, f + 0.45, cz - 0.25, wood);
+      g.fillBox(rx, f + 0.05, cz + 0.25, rx + 0.05, f + 1.05, cz + 0.3, wood); // back legs run up into the back
+    }
+    g.fillBox(cx - 0.32, f + 0.42, cz - 0.3, cx + 0.33, f + 0.47, cz + 0.3, wood); // seat
+    for (let i = 0; i < 5; i++) g.fillBox(cx - 0.3 + i * 0.14, f + 0.47, cz + 0.25, cx - 0.25 + i * 0.14, f + 1.0, cz + 0.3, wood); // spindles
+    g.fillBox(cx - 0.32, f + 0.98, cz + 0.22, cx + 0.33, f + 1.06, cz + 0.32, wood);
+    g.fillBox(cx - 0.28, f + 0.47, cz - 0.26, cx + 0.28, f + 0.52, cz + 0.22, (i, j, k) => color((i + k) % 4 < 2 ? '#c84a4a' : '#e8d8a0')); // a checked cushion
+    g.fillBox(cx - 0.3, f + 0.52, cz + 0.05, cx + 0.3, f + 0.85, cz + 0.22, grain('#6a86b8', 0.3)); // a folded blanket over the back
+  }));
+  col.addCircle(0.6, 78.05, 0.42, f, f + 1.1);
+
+  // ── Ground floor: a reading corner under the loft (armchair, footstool, side table, floor lamp) ──
+  add(cluster([5.6, f, 78.6], [8.4, f + 1.9, 80.4], (g) => {
+    armchair(g, 6.9, 79.65, -1, '#4a6a8a'); // facing north, toward the room
+    g.fillBox(6.65, f, 78.75, 7.15, f + 0.32, 79.1, grain('#4a6a8a', 0.4)); // footstool
+    g.fillBox(7.55, f, 79.4, 7.95, f + 0.55, 79.8, grain('#7a5030', 0.3)); // side table
+    g.fillBox(7.6, f + 0.55, 79.45, 7.8, f + 0.6, 79.65, color('#e8e0c8')); // a book on it
+    g.fill([7.78, f + 0.55, 79.55], [7.9, f + 0.66, 79.7], (px, py, pz) => Math.hypot(px - 7.84, pz - 79.62) < 0.05, color('#e8e4dc')); // a cup
+    g.fillBox(6.08, f, 79.88, 6.18, f + 1.6, 79.98, color('#2a2a30')); // floor lamp pole
+    g.fill([5.85, f + 1.5, 79.65], [6.4, f + 1.85, 80.2], (px, py, pz) => { const r = Math.hypot(px - 6.13, pz - 79.93); const o = 0.12 + (f + 1.85 - py) * 0.4; return r < o && r > o - 0.03; }, color('#e8d8a0'));
+  }));
+  col.addBox(6.5, 79.27, 7.3, 80.03, f, f + 1.0);
+  col.addBox(7.55, 79.4, 7.95, 79.8, f, f + 0.6);
+  col.addCircle(6.13, 79.93, 0.12);
+
+  // ── Ground floor: firewood stacked by the hearth, a kitchen cupboard, herbs drying, a quilt on the wall ──
+  add(cluster([9.6, f, z0 + 0.1], [11, f + 0.9, z0 + 0.8], (g) => {
+    for (let row = 0; row < 3; row++) {
+      for (let i = 0; i < 6 - row; i++) {
+        const lx = 9.75 + row * 0.1 + i * 0.2;
+        const ly = f + 0.1 + row * 0.18;
+        g.fill([lx - 0.1, ly - 0.1, z0 + 0.15], [lx + 0.1, ly + 0.1, z0 + 0.75], (px, py) => Math.hypot(px - lx, py - ly) < 0.09, (i2, j, k) => ((k % 12) < 1 ? color('#c8a878') : grain('#6a4a30', 0.6)(i2, j, k)));
+      }
+    }
+  }));
+  col.addBox(9.6, z0, 11, z0 + 0.8, f, f + 0.7);
+  add(cluster([10.4, f, 80.6], [11, f + 2.0, 81.8], (g) => {
+    g.fillBox(10.45, f, 80.65, 10.9, f + 1.9, 81.75, grain('#7a5030', 0.4)); // a tall cupboard
+    g.fillBox(10.425, f + 0.1, 80.7, 10.45, f + 1.8, 81.18, grain('#8a6040', 0.4));
+    g.fillBox(10.425, f + 0.1, 81.22, 10.45, f + 1.8, 81.7, grain('#8a6040', 0.4));
+    for (const hz of [81.1, 81.3]) g.fillBox(10.4, f + 0.95, hz, 10.425, f + 1.05, hz + 0.025, color('#c8a040'));
+  }));
+  col.addBox(10.4, 80.6, 11, 81.8, f, f + 2);
+  add(cluster([6.2, f + 1.85, z1 - 0.3], [8.4, f + 2.5, z1], (g) => {
+    g.fillBox(6.3, f + 2.35, z1 - 0.2, 8.3, f + 2.38, z1 - 0.175, color('#6a4a30')); // a string across
+    for (let i = 0; i < 8; i++) {
+      const hx = 6.45 + i * 0.25;
+      const hex = ['#6a8a3a', '#8a9a4a', '#a07a3a', '#5a7a4a'][i % 4];
+      g.fill([hx - 0.08, f + 1.95, z1 - 0.25], [hx + 0.08, f + 2.35, z1 - 0.1], (px, py, pz) => Math.abs(px - hx) < 0.03 + (f + 2.35 - py) * 0.15 && Math.abs(pz - (z1 - 0.18)) < 0.04, grain(hex, 0.6)); // bunches hanging upside down
+    }
+  }));
+  add(cluster([1.5, f + 1.3, z0 + 0.1], [3.4, f + 2.4, z0 + 0.25], (g) => {
+    g.fillBox(1.6, f + 2.25, z0 + 0.1, 3.3, f + 2.3, z0 + 0.15, color('#5e4030')); // a rod
+    g.fillBox(1.7, f + 1.35, z0 + 0.15, 3.2, f + 2.25, z0 + 0.2, (i, j) => color(['#c84a4a', '#e8d8a0', '#4a7aa0', '#6a9a4a', '#e8a040'][((i >> 2) + (j >> 2)) % 5])); // a patchwork quilt
+  }));
+
+  // ── The loft: a writing desk and chair, a low chest, a little bookshelf, plants ──
+  const L = loftY;
+  add(cluster([5.6, L, 78.9], [8.5, L + 1.4, 80.9], (g) => {
+    const wood = grain('#7a5030', 0.3);
+    g.fillBox(6.2, L + 0.72, 79.7, 7.8, L + 0.78, 80.4, wood); // desktop
+    for (const [lx, lz] of [[6.25, 79.75], [7.7, 79.75], [6.25, 80.3], [7.7, 80.3]]) g.fillBox(lx, L, lz, lx + 0.05, L + 0.72, lz + 0.05, wood);
+    g.fillBox(6.3, L + 0.78, 79.9, 6.8, L + 0.8, 80.25, color('#f0e8d0')); // papers
+    g.fillBox(6.35, L + 0.8, 79.95, 6.75, L + 0.8125, 80.2, color('#e8e0c8'));
+    g.fillBox(6.9, L + 0.8, 80.1, 7.15, L + 0.88, 80.3, color('#3a5a8a')); // a stack of books
+    g.fillBox(6.92, L + 0.88, 80.12, 7.13, L + 0.94, 80.28, color('#8a3a3a'));
+    g.fillBox(6.85, L + 0.8, 79.85, 6.95, L + 0.8125, 79.9, color('#2a2a30')); // a pen
+    g.fill([7.45, L + 0.78, 80.05], [7.7, L + 1.15, 80.3], (px, py, pz) => (py < L + 1.0 ? Math.hypot(px - 7.57, pz - 80.17) < 0.02 : Math.hypot(px - 7.57, pz - 80.17) < 0.1 && Math.hypot(px - 7.57, pz - 80.17) > 0.07), color('#c8a040')); // a desk lamp
+    // The chair, pushed out, a jumper over its back.
+    g.fillBox(6.75, L + 0.42, 79.15, 7.25, L + 0.47, 79.55, wood);
+    for (const [lx, lz] of [[6.77, 79.17], [7.2, 79.17], [6.77, 79.5], [7.2, 79.5]]) g.fillBox(lx, L, lz, lx + 0.04, L + 0.42, lz + 0.04, wood);
+    g.fillBox(6.75, L + 0.47, 79.1, 7.25, L + 0.95, 79.15, wood);
+    g.fillBox(6.73, L + 0.6, 79.05, 7.27, L + 0.98, 79.2, grain('#a85a4a', 0.4)); // the jumper
+  }));
+  col.addBox(6.2, 79.7, 7.8, 80.4, L, L + 0.8);
+  col.addBox(6.75, 79.1, 7.25, 79.55, L, L + 1.0);
+  add(cluster([9.9, L, 79.0], [11, L + 0.8, 80.5], (g) => {
+    g.fillBox(10.0, L, 79.1, 10.9, L + 0.7, 80.4, grain('#6a4a30', 0.4)); // a low chest of drawers under the slope
+    for (let i = 0; i < 2; i++) g.fillBox(9.975, L + 0.08 + i * 0.3, 79.15, 10.0, L + 0.32 + i * 0.3, 80.35, grain('#7a5a40', 0.4));
+    g.fill([10.2, L + 0.7, 79.4], [10.5, L + 1.05, 79.7], (px, py, pz) => (py < L + 0.82 ? Math.hypot(px - 10.35, pz - 79.55) < 0.08 : Math.hypot(px - 10.35, py - L - 0.92, pz - 79.55) < 0.12), (i, j) => (j < 5 ? color('#b8603a') : color('#5aa05a'))); // a plant on it
+  }));
+  col.addBox(10.0, 79.1, 10.9, 80.4, L, L + 0.8);
+  add(cluster([10.6, L, 80.6], [11, L + 0.7, 82.3], (g) => {
+    g.fillBox(10.65, L, 80.65, 10.9, L + 0.6, 82.2, grain('#5e4030', 0.3)); // a little bookshelf against the gable
+    books(g, 10.68, L + 0.05, 80.7, 82.1, 53);
+  }));
+  add(cluster([4.4, L + 1.0, 79.3], [5.2, L + 2.3, 80.1], (g) => {
+    g.fillBox(4.79, L + 1.9, 79.69, 4.81, L + 2.3, 79.71, color('#6a4a30')); // a hanging planter on a cord
+    g.fill([4.55, L + 1.6, 79.45], [5.05, L + 1.9, 79.95], (px, py, pz) => Math.hypot(px - 4.8, pz - 79.7) < 0.14 + (py - L - 1.6) * 0.2, grain('#b8603a', 0.4));
+    g.fill([4.4, L + 1.1, 79.3], [5.2, L + 1.75, 80.1], (px, py, pz) => { const d = Math.hypot(px - 4.8, pz - 79.7); return d > 0.1 && d < 0.4 && py > L + 1.75 - (d - 0.1) * 2.2 && (Math.floor(Math.atan2(pz - 79.7, px - 4.8) * 3) % 2 === 0); }, grain('#4a8a4a', 0.6)); // trailing leaves
   }));
 
   const mesh = bake(parts);

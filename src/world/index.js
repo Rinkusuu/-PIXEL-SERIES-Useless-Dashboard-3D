@@ -145,7 +145,9 @@ export function startWorld(canvas) {
 
   // ── Weather, seasons, inhabitants (P5) ──────────────────────────────────
   const weather = new Weather(world, ripples);
-  for (const m of new Set([voxelMaterial, terrain.material, skirt.material, forest.tiles[0].near.pine.material, ...meadow.tiles.flatMap((t) => [t.grass.material, t.flowers.material]), ground.material, ground.windMaterial])) weatherize(m);
+  for (const m of new Set([voxelMaterial, skirt.material, forest.tiles[0].near.pine.material])) weatherize(m);
+  weatherize(terrain.material, { ground: true });
+  for (const m of new Set([...meadow.tiles.flatMap((t) => [t.grass.material, t.flowers.material]), ground.material, ground.windMaterial])) weatherize(m, { bury: true });
   weatherize(house.roof.material, { sides: true });
   const critters = new Critters(world);
   const slime = new Slime(objects.list.find((o) => o.id === 'slime').object, player);
@@ -342,7 +344,7 @@ export function startWorld(canvas) {
       camera: player.camera,
       clear,
       bloomStrength: 0.85 + s.bass * 0.3 + (s.zen ? (s.breath - 0.5) * 0.25 : 0),
-      key: lights.key,
+      key: Object.assign(lights.key, { shadowDirty: lights.shadowDirty }),
       outline: target?.object && !panelOpen() ? target.object : null,
       // How thick the air is: a clear noon is nearly clean; fog, weather and losing the network thicken it.
       air: {

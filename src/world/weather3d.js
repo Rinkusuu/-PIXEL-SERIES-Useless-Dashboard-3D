@@ -29,17 +29,33 @@ export const weatherUniforms = {
 
 /**
  * Teach a Lambert material to wear snow and wetness. Chains any shader patch
- * it already has (the meadow's wind), and keys the program cache by both, so
- * two differently patched materials never share a compiled program.
+ * it already has (the meadow's wind), and keys the program cache by every
+ * option, so two differently patched materials never share a program.
+ *
+ *   sides   the stepped roof: risers facing out hold snow too
+ *   bury    small instanced things (grass, flowers, mushrooms): snow buries
+ *           them by shortening them, instead of painting them white
+ *   ground  the terrain: fine per-cell colour detail, and an `aSnowMask`
+ *           attribute (paths stay clear, the forest floor gets less)
  */
-export function weatherize(material, { sides = false } = {}) {
+export function weatherize(material, { sides = false, bury = false, ground = false } = {}) {
   const prev = material.onBeforeCompile;
   const prevKey = prev ? prev.toString() : '';
   material.onBeforeCompile = (shader, renderer) => {
     prev?.call(material, shader, renderer);
     Object.assign(shader.uniforms, weatherUniforms);
     shader.vertexShader = shader.vertexShader
-      .replace('#include <common>', '#include <common>\nvarying vec3 vWP;\nvarying vec3 vWN;')
+      .replace('#include <common>', `#include <common>
+        uniform float uSnow;
+        varying vec3 vWP;
+        varying vec3 vWN;
+        varying float vSnowMask;
+        ${ground ? 'attribute float aSnowMask;' : ''}`)
+      .replace(
+        '#include <begin_vertex>',
+        `#include <begin_vertex>
+        ${bury ? '// Buried, not whitened: snow shortens and thins what pokes out of it, until it is gone.\n        float buried = smoothstep(0.3, 0.95, uSnow);\n        transformed.y *= 1.0 - buried;\n        transformed.xz *= 1.0 - buried * buried;' : ''}`
+      )
       .replace(
         '#include <project_vertex>',
         `#include <project_vertex>
@@ -50,31 +66,37 @@ export function weatherize(material, { sides = false } = {}) {
           wwn = mat3(instanceMatrix) * wwn;
         #endif
         vWP = (modelMatrix * wwp).xyz;
-        vWN = normalize(mat3(modelMatrix) * wwn);`
+        vWN = normalize(mat3(modelMatrix) * wwn);
+        vSnowMask = ${ground ? 'aSnowMask' : '1.0'};`
       );
     shader.fragmentShader = shader.fragmentShader
-      .replace('#include <common>', '#include <common>\nuniform float uSnow;\nuniform float uWet;\nuniform vec3 uDryMin;\nuniform vec3 uDryMax;\nuniform float uRidgeZ;\nvarying vec3 vWP;\nvarying vec3 vWN;')
+      .replace('#include <common>', '#include <common>\nuniform float uSnow;\nuniform float uWet;\nuniform vec3 uDryMin;\nuniform vec3 uDryMax;\nuniform float uRidgeZ;\nvarying vec3 vWP;\nvarying vec3 vWN;\nvarying float vSnowMask;\nfloat whash(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }')
       .replace(
         '#include <color_fragment>',
         `#include <color_fragment>
+        ${ground ? `// Fine detail on the ground: every 12.5 cm cell a shade lighter or darker, so a
+        // column top reads as grass and soil rather than as one flat plastic tile.
+        float fine = whash(floor(vWP.xz * 8.0));
+        diffuseColor.rgb *= 0.9 + 0.2 * fine;` : ''}
         // A stepped voxel roof shows its risers from below: there, the risers that face OUT (away from
         // the ridge) hold snow too. The ones facing in are the ceiling, seen from the loft.
-        float up = ${sides ? 'max(step(0.5, vWN.y), step(abs(vWN.y), 0.5) * step(0.0, vWN.z * (vWP.z - uRidgeZ)))' : 'smoothstep(0.35, 0.6, vWN.y)'};
+        float up = ${sides ? 'max(step(0.5, vWN.y), step(abs(vWN.y), 0.5) * step(0.0, vWN.z * (vWP.z - uRidgeZ)))' : ground ? '1.0 - step(vWN.y, -0.5)' : 'smoothstep(0.35, 0.6, vWN.y)'}; // the ground's small risers wear snow too, or every contour is a green line
         vec3 inD = step(uDryMin, vWP) * step(vWP, uDryMax) * ${sides ? '0.0' : '1.0'}; // the roof is the roof: it is never 'inside'
-        up *= 1.0 - inD.x * inD.y * inD.z;
+        up *= (1.0 - inD.x * inD.y * inD.z) * vSnowMask;
         // Drifts in half-metre cells: deeper snow covers more of them, so it
         // settles in patches and melts back in patches, never as a fade.
-        float n = fract(sin(dot(floor(vWP.xz * 2.0), vec2(12.9898, 78.233))) * 43758.5453);
-        float cover = up * step(n, uSnow * 1.25 - 0.12);
+        float n = whash(floor((vWP.xz - vWN.xz * 0.01) * 2.0)); // a riser takes its cell from the column it belongs to
+        float cover = ${bury ? '0.0' : 'up * step(n, uSnow * 1.25 - 0.12)'};
         diffuseColor.rgb *= 1.0 - uWet * 0.3 * (0.4 + 0.6 * up) * (1.0 - inD.x * inD.y * inD.z);
-        diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.9, 0.93, 0.98), cover);
-        #ifdef USE_INSTANCING
-          // Grass and flowers (instanced, normals straight up): deep snow buries them to the tips.
-          diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.9, 0.93, 0.98), smoothstep(0.55, 0.95, uSnow) * up);
-        #endif`
+        // Snow is not paper-white: a soft blue-grey that the light then warms, with grains and
+        // wind-combed ridges, so in a whole white world you can still see the shape of the ground.
+        float grain = whash(floor(vWP.xz * 10.0) + 7.0);
+        float ridge = 0.5 + 0.5 * sin(vWP.x * 1.7 + vWP.z * 0.9 + n * 2.0);
+        vec3 snow = vec3(0.74, 0.79, 0.86) * (0.9 + 0.08 * grain + 0.06 * ridge);
+        diffuseColor.rgb = mix(diffuseColor.rgb, snow, cover);`
       );
   };
-  material.customProgramCacheKey = () => `weather|${sides}|${prevKey}`;
+  material.customProgramCacheKey = () => `weather|${sides}|${bury}|${ground}|${prevKey}`;
   material.needsUpdate = true;
   return material;
 }

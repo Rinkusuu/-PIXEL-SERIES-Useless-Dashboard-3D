@@ -208,8 +208,8 @@ function placeLamps() {
    The terrain is drawn as columns: BLOCK metres across, heights rounded to
    STEP. Everything that stands on the ground (the player's feet, trees, grass,
    props) asks blockHeight, so nothing floats above a step or sinks into one. */
-export const BLOCK = 0.5;
-export const STEP = 0.25;
+export const BLOCK = 0.25; // finer columns: slopes read as slopes, not as a staircase
+export const STEP = 0.125;
 
 /** The top of the ground column containing (x, z). */
 export function blockHeight(x, z) {

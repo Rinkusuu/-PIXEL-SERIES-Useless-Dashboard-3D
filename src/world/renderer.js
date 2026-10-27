@@ -126,7 +126,8 @@ export class Pipeline {
     // Shadows at 20 Hz: the sun moves once a second, and a door or a slime at
     // 20 Hz is still smooth. Two frames in three skip the whole shadow pass.
     this._frame = (this._frame ?? 0) + 1;
-    r.shadowMap.needsUpdate = r.shadowMap.enabled && this._frame % 3 === 0;
+    // ...unless the shadow picture moved (you walked a texel, the sun moved): then at once.
+    r.shadowMap.needsUpdate = r.shadowMap.enabled && (this._frame % 3 === 0 || key.shadowDirty);
 
     // ── background + world ────────────────────────────────────────────────
     this.pass = 'main';
