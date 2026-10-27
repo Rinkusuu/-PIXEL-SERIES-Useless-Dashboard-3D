@@ -19,13 +19,16 @@ import { mixRgb } from '../core/util.js';
 import { Pipeline, linear } from './renderer.js';
 import { TIERS, initialTier, nextTier } from './quality.js';
 import { Collision } from './collision.js';
-import { blockHeight, isWater, WALK_RADIUS } from './layout.js';
+import { blockHeight, forestDensity, isWater, WALK_RADIUS } from './layout.js';
 import { Sky } from './sky3d.js';
 import { Lights } from './lights.js';
 import { buildTerrain, buildSkirt } from './terrain.js';
 import { Water } from './water.js';
 import { House } from './house.js';
 import { buildInterior } from './interior.js';
+import { buildYard } from './yard.js';
+import { buildBuildings } from './buildings.js';
+import { Fauna } from './fauna.js';
 import { buildProps, updateLamps } from './props.js';
 import { Forest } from './forest.js';
 import { Meadow, LAYER_GRASS, windy } from './meadow.js';
@@ -80,6 +83,9 @@ export function startWorld(canvas) {
   world.add(house.group);
   const interior = buildInterior(col);
   world.add(...interior.group);
+  world.add(...buildYard(col).group);
+  const buildings = buildBuildings(col);
+  world.add(...buildings.group);
   const props = buildProps(col);
   world.add(props.group);
   const forest = new Forest(col);
@@ -150,6 +156,7 @@ export function startWorld(canvas) {
   for (const m of new Set([...meadow.tiles.flatMap((t) => [t.grass.material, t.flowers.material]), ground.material, ground.windMaterial])) weatherize(m, { bury: true });
   weatherize(house.roof.material, { sides: true });
   const critters = new Critters(world);
+  const fauna = new Fauna(world, ripples, player);
   const slime = new Slime(objects.list.find((o) => o.id === 'slime').object, player);
   audio.enableSpatial({ hearth: lights.hearth.position.toArray() });
   let earClock = 0;
@@ -300,6 +307,7 @@ export function startWorld(canvas) {
     weather.update(s, player.camera.position, dt, tier.name === 'low' ? 0.35 : tier.name === 'medium' ? 0.65 : 1);
     water.setIndoors(weather.indoors);
     critters.update(s, player.camera.position, dt);
+    fauna.update(s, dt);
     slime.update(s, dt);
     earClock -= dt;
     if (earClock <= 0) {
@@ -321,6 +329,7 @@ export function startWorld(canvas) {
     water.update(s);
     house.update(s, dt);
     interior.update(s);
+    buildings.update(s, dt);
     updateLamps(props, lights.dark);
     meadow.update(s, player.camera.position, tier.fogFar);
     forest.update(player.camera.position, tier.fogFar);
@@ -382,6 +391,8 @@ export function startWorld(canvas) {
       objects: objects.list,
       /** Stand `dist` metres from an object (on the floor you name) and look straight at it. */
       fishing,
+      fauna,
+      layout: { isWater, forestDensity },
       input,
       weather,
       weatherUniforms,

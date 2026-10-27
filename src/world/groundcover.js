@@ -85,13 +85,21 @@ const inWorld = (x, z) => Math.hypot(x, z) < WALK_RADIUS + 6;
 const dry = (x, z) => !isWater(x, z);
 const patch = (x, z, seed) => fbm2(x * 0.06, z * 0.06, 2, seed); // clumping
 
+function steppingStone() {
+  const g = new VoxelGrid([-0.3, 0, -0.3], [0.3, 0.06, 0.3], 0.04);
+  g.fill([-0.3, 0, -0.3], [0.3, 0.05, 0.3], (x, y, z) => Math.hypot(x / 0.28, z / 0.22) < 1 - fbm2(x * 6, z * 6, 1, 3) * 0.25, grain('#a8a49a', 0.6));
+  return mesh(g);
+}
+
 const KINDS = [
+  // Flat stones set into the worn paths, so a path is a path and not just a brown stripe.
+  { name: 'pathStones', geo: () => steppingStone(), n: 1400, ok: (x, z) => dry(x, z) && pathDist(x, z) < 0.75 },
   { name: 'pebbles', geo: () => pebbles(), n: 2600, ok: (x, z) => dry(x, z) && lakeE(x, z) > 1.05 && (pathDist(x, z) < 2.4 || patch(x, z, 19) > 0.62) },
   { name: 'mushroomRed', geo: () => mushrooms('red'), n: 500, ok: (x, z) => dry(x, z) && forestDensity(x, z) > 0.45 && patch(x, z, 3) > 0.55 },
   { name: 'mushroomBrown', geo: () => mushrooms('brown'), n: 900, ok: (x, z) => dry(x, z) && forestDensity(x, z) > 0.35 && patch(x, z, 4) > 0.5 },
-  { name: 'flowersWarm', geo: () => flowers(['#f0d070', '#f4f1ff', '#ffb050'], 1), n: 1600, ok: (x, z) => grassDensity(x, z) > 0.3 && patch(x, z, 7) > 0.58 },
-  { name: 'flowersCool', geo: () => flowers(['#c8a0d8', '#8fb0f0', '#f4f1ff'], 2), n: 1400, ok: (x, z) => grassDensity(x, z) > 0.3 && patch(x, z, 9) > 0.6 },
-  { name: 'flowersRed', geo: () => flowers(['#e05a6a', '#ff8fa3', '#f0d070'], 3), n: 900, ok: (x, z) => grassDensity(x, z) > 0.3 && patch(x, z, 11) > 0.63 },
+  { name: 'flowersWarm', geo: () => flowers(['#f0d070', '#f4f1ff', '#ffb050'], 1), n: 700, ok: (x, z) => grassDensity(x, z) > 0.3 && patch(x, z, 7) > 0.58 },
+  { name: 'flowersCool', geo: () => flowers(['#c8a0d8', '#8fb0f0', '#f4f1ff'], 2), n: 600, ok: (x, z) => grassDensity(x, z) > 0.3 && patch(x, z, 9) > 0.6 },
+  { name: 'flowersRed', geo: () => flowers(['#e05a6a', '#ff8fa3', '#f0d070'], 3), n: 400, ok: (x, z) => grassDensity(x, z) > 0.3 && patch(x, z, 11) > 0.63 },
   {
     name: 'tallGrass', geo: () => tallGrass(), n: 5000, wind: true,
     // Where the mown meadow gives way: the forest's edge and the shore's.

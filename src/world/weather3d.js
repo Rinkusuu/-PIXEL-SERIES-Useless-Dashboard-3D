@@ -70,7 +70,7 @@ export function weatherize(material, { sides = false, bury = false, ground = fal
         vSnowMask = ${ground ? 'aSnowMask' : '1.0'};`
       );
     shader.fragmentShader = shader.fragmentShader
-      .replace('#include <common>', '#include <common>\nuniform float uSnow;\nuniform float uWet;\nuniform vec3 uDryMin;\nuniform vec3 uDryMax;\nuniform float uRidgeZ;\nvarying vec3 vWP;\nvarying vec3 vWN;\nvarying float vSnowMask;\nfloat whash(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }')
+      .replace('#include <common>', '#include <common>\nuniform float uSnow;\nuniform float uWet;\nuniform vec3 uDryMin;\nuniform vec3 uDryMax;\nuniform float uRidgeZ;\nvarying vec3 vWP;\nvarying vec3 vWN;\nvarying float vSnowMask;\nfloat whash(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }\nfloat vnoise(vec2 p) { vec2 i = floor(p); vec2 f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(whash(i), whash(i + vec2(1.0, 0.0)), f.x), mix(whash(i + vec2(0.0, 1.0)), whash(i + vec2(1.0, 1.0)), f.x), f.y); }')
       .replace(
         '#include <color_fragment>',
         `#include <color_fragment>
@@ -83,10 +83,12 @@ export function weatherize(material, { sides = false, bury = false, ground = fal
         float up = ${sides ? 'max(step(0.5, vWN.y), step(abs(vWN.y), 0.5) * step(0.0, vWN.z * (vWP.z - uRidgeZ)))' : ground ? '1.0 - step(vWN.y, -0.5)' : 'smoothstep(0.35, 0.6, vWN.y)'}; // the ground's small risers wear snow too, or every contour is a green line
         vec3 inD = step(uDryMin, vWP) * step(vWP, uDryMax) * ${sides ? '0.0' : '1.0'}; // the roof is the roof: it is never 'inside'
         up *= (1.0 - inD.x * inD.y * inD.z) * vSnowMask;
-        // Drifts in half-metre cells: deeper snow covers more of them, so it
-        // settles in patches and melts back in patches, never as a fade.
-        float n = whash(floor((vWP.xz - vWN.xz * 0.01) * 2.0)); // a riser takes its cell from the column it belongs to
-        float cover = ${bury ? '0.0' : 'up * step(n, uSnow * 1.25 - 0.12)'};
+        // Drifts, not a checkerboard: smooth noise at two scales decides where snow lies,
+        // read at the column's own cell so a voxel is all-snow or none. A light dusting
+        // shows nothing at all; it builds into rounded drifts, then a full cover.
+        vec2 cell = (floor((vWP.xz - vWN.xz * 0.01) * 4.0) + 0.5) / 4.0;
+        float n = vnoise(cell * 0.18) * 0.7 + vnoise(cell * 0.7 + 13.0) * 0.3;
+        float cover = ${bury ? '0.0' : 'up * step(n, uSnow * 1.3 - 0.3)'};
         diffuseColor.rgb *= 1.0 - uWet * 0.3 * (0.4 + 0.6 * up) * (1.0 - inD.x * inD.y * inD.z);
         // Snow is not paper-white: a soft blue-grey that the light then warms, with grains and
         // wind-combed ridges, so in a whole white world you can still see the shape of the ground.

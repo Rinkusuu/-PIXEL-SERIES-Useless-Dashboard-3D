@@ -59,6 +59,38 @@ export const SPOTS = {
   leafTree: { x: 40, z: -62 },
 };
 
+/* ── The places of P7.3: a lived-in yard, and a few buildings in the open ──
+   Rectangles are { x0, x1, z0, z1 }; points are { x, z }. Nothing else in
+   the world decides where these stand. */
+export const PLACES = {
+  yard: { x0: -12, x1: 17, z0: 66.5, z1: 90, gate: [1, 10] }, // a fence round it all; the gap in the north side is the gate
+  garden: { x0: -10, x1: -3.5, z0: 72.5, z1: 80 }, // vegetable beds, west of the cabin
+  greenhouse: { x0: -10, x1: -5, z0: 82, z1: 86.5 },
+  well: { x: -5, z: 69 },
+  woodpile: { x: 14.2, z: 77 },
+  cart: { x: 14.5, z: 71 },
+  washing: { x0: 1.5, x1: 9.5, z: 87 },
+  barn: { x0: 22, x1: 30, z0: 61, z1: 70 },
+  windmill: { x: 42, z: 46 },
+  gazebo: { x: -3, z: 30 },
+  boathouse: { x0: 4, x1: 11, z0: -35, z1: -27.5 }, // half on the shore, half on piles over the water
+  ruins: { x: 40, z: -88 },
+  signpost: { x: 8.6, z: 63.8 },
+  boat: { x: -38.2, z: -6.5 },
+};
+
+/** Ground no tree may stand on and (for the buildings) no grass may grow through. */
+const CLEARINGS = [
+  ['rect', PLACES.barn, 3], ['rect', PLACES.greenhouse, 1], ['rect', PLACES.garden, 0.6], ['rect', PLACES.boathouse, 4],
+  ['circle', { ...PLACES.windmill, r: 3.5 }, 4], ['circle', { ...PLACES.gazebo, r: 2.6 }, 3], ['circle', { ...PLACES.ruins, r: 7 }, 3],
+  ['circle', { ...PLACES.well, r: 0.9 }, 0.5],
+];
+
+const inClearing = (x, z, margin) => CLEARINGS.some(([kind, c, m]) => {
+  const pad = margin ?? m;
+  return kind === 'rect' ? x > c.x0 - pad && x < c.x1 + pad && z > c.z0 - pad && z < c.z1 + pad : Math.hypot(x - c.x, z - c.z) < c.r + pad;
+});
+
 /* The path from the porch to the hill crosses the stream at the bridge; a
    branch goes west past the mailbox to the dock. Polylines of [x, z]. */
 export const PATHS = [
@@ -237,6 +269,7 @@ export function forestDensity(x, z) {
   if (Math.hypot(x - HILL.x, z - HILL.z) < 22) return 0;
   if (Math.hypot(x - TOWER.x, z - TOWER.z) < 7 || segDist(x, z, TOWER.x, TOWER.z, TOWER.x, TOWER.z + TOWER.stairRun + 4).d < 4) return 0;
   if (Math.hypot(x - SPOTS.leafTree.x, z - SPOTS.leafTree.z) < 7) return 0;
+  if (inClearing(x, z)) return 0;
 
   const north = sstep(-25, -65, z); // the forest proper
   const rim = sstep(88, 108, r); // trees thicken toward the edge
@@ -251,6 +284,7 @@ export function grassDensity(x, z) {
   if (pathDist(x, z) < 1.1) return 0;
   if (lineDist(x, z, STREAM).d < STREAM_HALF_WIDTH + 0.4) return 0;
   if (inCabinPad(x, z, 0.5)) return 0;
+  if (inClearing(x, z, 0)) return 0; // nothing grows through a floor
   const shade = forestDensity(x, z);
   return clamp(1 - shade * 1.4, 0, 1) * (0.55 + 0.45 * fbm2(x * 0.04, z * 0.04, 2, 11));
 }

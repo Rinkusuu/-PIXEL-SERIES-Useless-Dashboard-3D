@@ -667,3 +667,22 @@ Everything that was offered was chosen:
 | "awan kurang merata" | random azimuths → clumps | **golden-angle** azimuths (any first n clouds are evenly spread), shapes interleaved; a little more cover when clear |
 
 Tests: the old walk script lived in a deleted scratchpad, so it is now `e2e/walk.spec.js` (door open/shut, ladder, shore, tower). **10 e2e + 90 unit tests pass.**
+
+### P7.3 — The world's contents (done)
+All places are declared in `layout.PLACES` with **clearings** (no trees in them, no grass through floors).
+- **The yard** (`world/yard.js`): a whitewashed picket fence round the cabin (it follows the ground; the gate is where the path leaves), three raised beds (cabbages, carrots, staked tomatoes), a scarecrow, a little **greenhouse** (timber frame, see-through glass, gravel floor, shelves of seedlings, a doorway), a **stone well** (roof, crank, rope, bucket, dark water), a **woodpile** under a board roof with a **chopping block and the axe in it**, a handcart with sacks, and washing on a line.
+- **Buildings** (`world/buildings.js`):
+  - a red **barn** in the meadow (open X-braced doors, hay loft, bales, a workbench and tool board, walkable floor)
+  - a **windmill** whose sails turn with the real wind (held still under reduced motion)
+  - a white **gazebo** with a bench, open toward the lake
+  - a **boathouse** on piles with walkways, a boat in its slip, rope and a lifebuoy
+  - **forest ruins**: broken mossy walls, an arch over the way in, a standing and a fallen column, slabs, a carved block
+  - a **signpost** with four named arms (DOCK, HILL, TOWER, HOME) in the 3×5 font, each pointing at its place
+  - three **benches** along the paths
+  - a **rowboat** moored at the dock (cleat and rope); the boats rock gently
+- **Stepping stones** set into the paths (groundcover).
+- **Fauna** (`world/fauna.js`): a duck and four ducklings paddling a loop on the lake; a **fish that jumps** every 8–20 s, with rings; 10 **rabbits** at the meadow's edges that hop, pause, and **bolt** if you come within 5 m (tested: about 3 m in 1.5 s); two **deer** grazing on the meadow edge that lift their heads when you are near and walk off if you get close. Rabbits and deer are out by day only. Reduced motion: nothing jumps or bolts, and the ducks drift.
+- **Fewer wildflowers** (3900 → 1700) after "lapangan kebanyakan rumput".
+- **Bug found:** with little "resting snow" (e.g. before the location is known, at 45°N in late October), the snow shader scattered half-metre cells like a **checkerboard over every surface, even the lake bed**. Snow cover now uses **smooth two-scale value noise** read per column cell: a light dusting shows nothing, then rounded drifts form, then full cover.
+- Captures: `p73-1366-{yard,garden-greenhouse,barn,windmill,gazebo-lake,boathouse,ruins,signpost,meadow-wide,fauna-ducks,fauna-deer,fauna-rabbit}.png`.
+- Cost (visuals first): 1366 high, 165–545 draw calls; world chunk **193.7 KB gz**. 90 unit tests and 10 e2e tests pass.
